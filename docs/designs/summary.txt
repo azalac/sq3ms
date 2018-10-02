@@ -1,0 +1,169 @@
+
+Format:
+
+{Class Library Name or Category}
+	text-only short description
+
+[Class Name or Category Subheader]
+	doxygen-like description
+
+method:
+	doxygen-like description
+	(always public, may be static - see description)
+
+Modifiers TYPE-property :
+	doxygen-like description
+
+[Another Class Name]
+
+etc
+
+
+==============================
+
+{Demographics}
+	Contains all classes and functionality required for the application to create,
+	update, validate, and maintain an accurate roster of patients for the medical
+	clinic.
+
+[Patient]
+	The patient's data.
+	Contains no logic, only getters and setters or c# properties
+
+String-HCN
+	Manditory
+	Health Card Number, a 12 character unique ID, with 10 numeric digits
+		followed by 2 alphabetical characters, e.g. 123456789KV
+
+String-lastName
+	Manditory
+
+String-firstName
+	Manditory
+
+Char-mInitial
+	Optional
+	Middle Initial
+
+Date-dateOfBirth
+	Manditory
+	DDMMYYYY
+
+Char-sex
+	Manditory
+	M/F/I/H
+		no idea what I or H means
+
+String-headOfHouse
+	Optional, Must be valid
+	HCN for head of house / caregiver for elderly/sick, etc
+
+NOTE: MHIB = Manditory if Headofhouse Is Blank
+	- if headOfHouse != blank, MHIB fields are populated with their data
+	- if headOfHouse == blank, MHIB fields are populated with patient's data
+		(Manditory)
+
+String-addressLine1
+	MHIB
+
+String-addressLine2
+	MHIB
+
+String-city
+	MHIB
+
+String-province
+	MHIB
+	Default to ON, always 2 letter abbreviation
+
+String-numPhone
+	MHIB
+	Phone number?
+
+
+{SchedulingUI-workflows}
+
+[Scheduling Patients]
+	When booking, patients can be booked by themself, or with a caregiver/relative/etc
+
+[Scheduling Searching]
+	When booking, patients should be able to be searched by last name or some
+		other useful property (phone number, address, etc) which interacts with
+		the {Demographic}/[Patient] module
+
+[Scheduling Hours]
+	Prototype must allow up to 6 appointment slots per day, Mon-Fri each week
+	Sat and Sun have 2 appointment slots
+	Schedule should reflect the months of Oct-Nov-Dec, 2017 for testing
+
+[Scheduling Non-functional]
+	Navigation should be elegant and effective to allow staff to quickly book
+		a patient w/o large menus
+
+[Scheduling Ease-Of-Use]
+	Find next available time:
+		by day of week
+		by month
+		by recall of 1,2,3 weeks
+	Quickly jump through shedule by day, week, month
+
+
+{Billing}
+	Handles billing and generates a billing file
+
+[Enter/Update Billing Data]
+	Using same ui as {Scheduling-workflows}, staff can find an appointment and
+		select it in order to provide billing codes
+	Billing codes indicate which fees are applicable
+
+[Flag for Recall]
+	While doing [Enter/Update Billing Data], staff can flag the appointment for
+		a recall in 1,2,3 weeks
+
+[Generate Monthly Billing File]
+	Generates the data needed by the Ministry of Health to provide payment to
+		the clinic
+	Outputs a CSV file - format covered elsewhere
+	Requires being able to look up and apply a fee from a fee schedule file
+		provided by the Ministry of Health, against billable appointments during
+		a specific month
+
+[Reconcile Monthly Billing]
+	Each billed appointment is replied to within the response file
+		- idk what this means
+	Each appointment has 4 states:
+		- PAID
+		- DECL (Declined)
+		- FHCV (Failed health card validation)
+		- CMOH (Contact Ministry of Health)
+	The EMS application read the file and update the monthly summary
+	The EMS application must mark any appointments replied to with FHCV or CMOH
+		for review
+
+[Monthly Billing Summary]
+	Displays a summary which includes:
+		Total encounters billed for current month (Integer)
+		Total billed procedures (in dollars)
+		Received Total (in dollars)
+		Received Percentage (RT / TBP * 100)
+		Average Billing (RT / TEB in dollars)
+		Number of follow-up appointments - count of FHCV and CMOH appts (Integer)
+	Must wait until [Reconcile Monthly Billing] file received
+
+{Support}
+
+[File IO]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
