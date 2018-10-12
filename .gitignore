@@ -1,4 +1,6 @@
 *.exe
+*.dll
 *.pdb
-*.userpref
-
+*.mdb
+*.userprefs
+*~
