@@ -1,11 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28010.2019
-MinimumVisualStudioVersion = 10.0.40219.1
+# Visual Studio 2012
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EMSTesting", "SQEms\EMSTesting.csproj", "{90F660E6-5DB0-4906-80C8-51A9A5833364}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchedulingUI", "SchedulingUI\SchedulingUI.csproj", "{9D132E48-924E-40D9-88B4-C9732CB447CC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Demographics", "Demographics\Demographics.csproj", "{814AF87E-BC77-4A09-8786-4BA4A0A3F855}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Billing", "Billing\Billing.csproj", "{83C26884-B644-4DF1-A54B-A832C846F62D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Support", "Support\Support.csproj", "{B03DDCB5-98E1-464A-A3DB-4DA8C39555BE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,6 +17,14 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{814AF87E-BC77-4A09-8786-4BA4A0A3F855}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{814AF87E-BC77-4A09-8786-4BA4A0A3F855}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{814AF87E-BC77-4A09-8786-4BA4A0A3F855}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{814AF87E-BC77-4A09-8786-4BA4A0A3F855}.Release|Any CPU.Build.0 = Release|Any CPU
+		{83C26884-B644-4DF1-A54B-A832C846F62D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{83C26884-B644-4DF1-A54B-A832C846F62D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{83C26884-B644-4DF1-A54B-A832C846F62D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{83C26884-B644-4DF1-A54B-A832C846F62D}.Release|Any CPU.Build.0 = Release|Any CPU
 		{90F660E6-5DB0-4906-80C8-51A9A5833364}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{90F660E6-5DB0-4906-80C8-51A9A5833364}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{90F660E6-5DB0-4906-80C8-51A9A5833364}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -21,6 +33,13 @@ Global
 		{9D132E48-924E-40D9-88B4-C9732CB447CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9D132E48-924E-40D9-88B4-C9732CB447CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9D132E48-924E-40D9-88B4-C9732CB447CC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B03DDCB5-98E1-464A-A3DB-4DA8C39555BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B03DDCB5-98E1-464A-A3DB-4DA8C39555BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B03DDCB5-98E1-464A-A3DB-4DA8C39555BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B03DDCB5-98E1-464A-A3DB-4DA8C39555BE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(MonoDevelopProperties) = preSolution
+		StartupItem = SQEms\EMSTesting.csproj
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
