@@ -1,0 +1,16 @@
+C:/Users/azalac0020/Desktop/EventQueueStuff/EventQueueStuff/obj/Debug/EventQueueStuff.csproj.CoreCompileInputs.cache
+C:/Users/azalac0020/Desktop/EventQueueStuff/EventQueueStuff/bin/Debug/EventQueueStuff.exe.config
+C:/Users/azalac0020/Desktop/EventQueueStuff/EventQueueStuff/bin/Debug/EventQueueStuff.exe
+C:/Users/azalac0020/Desktop/EventQueueStuff/EventQueueStuff/bin/Debug/EventQueueStuff.pdb
+C:/Users/azalac0020/Desktop/EventQueueStuff/EventQueueStuff/obj/Debug/EventQueueStuff.exe
+C:/Users/azalac0020/Desktop/EventQueueStuff/EventQueueStuff/obj/Debug/EventQueueStuff.pdb
+C:/Users/azalac0020/Desktop/EventQueueStuff/EventQueueStuff/obj/Debug/EventQueueStuff.csprojAssemblyReference.cache
+//FSSTU02D/Stu2/Home/Azalac0020/EventQueueStuff/EventQueueStuff/obj/Debug/EventQueueStuff.csprojAssemblyReference.cache
+//FSSTU02D/Stu2/Home/Azalac0020/EventQueueStuff/EventQueueStuff/obj/Debug/EventQueueStuff.csproj.CoreCompileInputs.cache
+//FSSTU02D/Stu2/Home/Azalac0020/EventQueueStuff/EventQueueStuff/obj/Debug/EventQueueStuff.exe
+//FSSTU02D/Stu2/Home/Azalac0020/EventQueueStuff/EventQueueStuff/obj/Debug/EventQueueStuff.pdb
+//FSSTU02D/Stu2/Home/Azalac0020/EventQueueStuff/EventQueueStuff/bin/Debug/EventQueueStuff.exe.config
+//FSSTU02D/Stu2/Home/Azalac0020/EventQueueStuff/EventQueueStuff/bin/Debug/EventQueueStuff.exe
+//FSSTU02D/Stu2/Home/Azalac0020/EventQueueStuff/EventQueueStuff/bin/Debug/EventQueueStuff.pdb
+/home/austin-z/Documents/sem3/SQ/sqems/EventQueueStuff/EventQueueStuff/obj/Debug/EventQueueStuff.exe
+/home/austin-z/Documents/sem3/SQ/sqems/EventQueueStuff/EventQueueStuff/obj/Debug/EventQueueStuff.pdb

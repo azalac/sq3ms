@@ -1,0 +1,58 @@
+
+Make sure you're using a mono-width font or else these won't look correct.
+
+Startup interface:
+--------------------------------------------------------------------------------
+| I /\ MONTH  |  SUN  |  MON  |  TUE  |  WED  |  THUR  |  FRI  |  SAT  |  TOT  |
+| K \/ WEEK#  |  0/2  |  0/6  |  0/6  |  0/6  |  0/6   |  0/6  |  0/2  | 00/34 |
+--------------------------------------------------------------------------------
+|			  |123123 |123126 |		  |		  |		   |	   |	   |
+| SCHEDULING  |Other  |		  |		  |		  |		   |	   |	   |	?
+|			  |-------|-------|-------|-------|--------|-------|-------|
+| PATIENTS	  |123124 |Empty  |
+|			  |		  |		  |The pattern continues (too lazy to do all that)
+| BILLING	  |-------|-------|
+|			  |		  |Empty  |
+|-------------|		  |		  |
+|			  |-------|-------|
+|			  |		  |Empty  |
+|	logo?	  |		  |		  |
+|			  |-------|-------|
+|			  |		  |Empty  |
+|			  |		  |		  |
+|			  |-------|-------|
+|			  |		  |Empty  |
+|			  |		  |		  |
+|			  |		  |		  |
+--------------------------------------------------------------------------------
+
+Used when creating a new appointment, and when applying billing codes
+
+Scheduling interface:
+--------------------------------------------------------------------------------
+| I /\ MONTH  |  SUN  |  MON  |  TUE  |  WED  |  THUR  |  FRI  |  SAT  |
+|			  |  0/2  |  0/6  |  0/6  |  0/6  |  0/6   |  0/6  |  0/2  |
+| K \/ WEEK#  |       | J< >L |       |       |        |       |       |
+--------------------------------------------------------------------------------
+|			|
+| DATE      |  [Selected using the above menu]
+|			|
+| TIMESLOT  |  [2 or 6 'radio' selection, depends on day-of-week]
+|			|
+| FIND NEXT |  After [1, 2, 3] Weeks - Auto fills above 2
+|			|
+| PATIENT   |  [Search by name, phone #, address - creates dropdown menu]
+|			|
+| PATIENT2  |  [Search by name, phone #, address - creates dropdown menu]
+|			|
+| BILLING   |  [List of codes]
+|			|
+| ADD BILL  |  [Integer input, appends to the end of Billing]
+|			|
+| RECALL    |  In [1, 2, 3] Weeks 
+|
+|
+|
+--------------------------------------------------------------------------------
+
+
