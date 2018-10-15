@@ -1,0 +1,2 @@
+/home/austin-z/Documents/sem3/SQ/sqems/SQEms/SchedulingUI/obj/Debug/.NETFramework,Version=v4.6.1.AssemblyAttribute.cs
+/home/austin-z/Documents/sem3/SQ/sqems/SQEms/SchedulingUI/obj/Debug/SchedulingUI.dll

@@ -2,7 +2,7 @@ using System;
 
 namespace SchedulingUI
 {
-	public class Box : IComponent
+	public class Box : Component
 	{
 		
 		private const int TOP_LEFT = 0x250F,
@@ -11,19 +11,10 @@ namespace SchedulingUI
 		BOTTOM_RIGHT = 0x251B,
 		VERTICAL = 0x2503,
 		HORTIZONTAL = 0x2501;
-		
-		public int Left{ get; set; }
-		public int Top{ get; set; }
-		public int Width{ get; set; }
-		public int Height{ get; set; }
 
 		#region IComponent implementation
 
-		public int ZIndex { get; set;}
-		
-		public event EventHandler RequestRedraw;
-
-		public void Draw (IConsole buffer)
+		public override void Draw (IConsole buffer)
 		{
 			buffer.SetCursorPosition (Left, Top);
 
@@ -64,7 +55,7 @@ namespace SchedulingUI
 
 	}
 
-	public class GridContainer : IContainer
+	public class GridContainer : Container
 	{
 		/// <summary>
 		/// If this grid container draw and account for the borders between cells.
@@ -113,7 +104,11 @@ namespace SchedulingUI
 
 					component.Width = (int)(width * x % 1 + width) - offset;
 					component.Height = (int)(height * y % 1 + height) - offset;
-
+					
+					if(component is Container)
+					{
+						(component as Container).DoLayout ();
+					}
 				}
 			}
 
@@ -130,7 +125,8 @@ namespace SchedulingUI
 		public FlowContainer():
 			base()
 		{
-			OnComponentAdded += (object sender, ComponentEventArgs e) => UpdateCount();
+			ComponentAdded += (object sender, ComponentEventArgs e) => UpdateCount ();
+			ComponentRemoved += (object sender, ComponentEventArgs e) => UpdateCount ();
 		}
 
 		private void UpdateCount()
@@ -147,5 +143,55 @@ namespace SchedulingUI
 		}
 
 	}
+
+	public class RootContainer : Container
+	{
+		public IConsole Console { get; private set; }
+
+		public RootContainer(IConsole console)
+		{
+			ComponentAdded += CheckCount;
+			ComponentRemoved += CheckCount;
+
+			Console = console;
+		}
+
+		private void CheckCount(object sender, ComponentEventArgs e)
+		{
+			if (Components.Count > 1) {
+				System.Diagnostics.Debug.WriteLine ("Warning: RootContainer has more than one child");
+			}
+		}
+
+		public void Draw()
+		{
+			Draw (Console);
+		}
+
+		#region implemented abstract members of IContainer
+
+		public override void DoLayout ()
+		{
+			if (Components.Count > 0)
+			{
+				IComponent root = Components [0];
+
+				root.Top = 0;
+				root.Left = 0;
+				root.Height = Console.BufferHeight;
+				root.Width = Console.BufferWidth;
+
+				if(root is Container)
+				{
+					(root as Container).DoLayout ();
+				}
+			}
+		}
+
+		#endregion
+
+
+	}
+
 }
 
