@@ -15,6 +15,9 @@ namespace SchedulingUI
 
 		event EventHandler RequestRedraw;
 
+		ConsoleColor Background { get; set; }
+		ConsoleColor Foreground { get; set; }
+
 		void Draw(IConsole buffer);
 	}
 
@@ -34,7 +37,51 @@ namespace SchedulingUI
 		}
 	}
 
-	public abstract class IContainer : IComponent
+	public abstract class Component : IComponent
+	{
+		public Component()
+		{
+		}
+		
+		public event EventHandler<ComponentEventArgs> ComponentAdded;
+
+		public event EventHandler<ComponentEventArgs> ComponentRemoved;
+		
+		public ConsoleColor Background { get; set; }
+		public ConsoleColor Foreground { get; set; }
+
+		public event EventHandler RequestRedraw;
+
+		public virtual void OnRequestRedraw(object sender, EventArgs args)
+		{
+			RequestRedraw (sender, args);
+		}
+
+		public virtual void OnComponentAdded(object sender, ComponentEventArgs args)
+		{
+			ComponentAdded (sender, args);
+		}
+
+		public virtual void OnComponentRemoved(object sender, ComponentEventArgs args)
+		{
+			ComponentRemoved (sender, args);
+		}
+
+		public int ZIndex { get; set; }
+
+		public int Left { get; set; }
+
+		public int Top { get; set; }
+
+		public int Width { get; set; }
+
+		public int Height { get; set; }
+
+		public abstract void Draw(IConsole buffer);
+
+	}
+
+	public abstract class Container : Component
 	{
 		public readonly List<IComponent> Components = new List<IComponent> ();
 
@@ -49,7 +96,7 @@ namespace SchedulingUI
 			Components.Add (component);
 			Components.Sort (compare);
 
-			component.RequestRedraw += this.RequestRedraw;
+			component.RequestRedraw += OnRequestRedraw;
 
 			OnComponentAdded (this, new ComponentEventArgs (component));
 		}
@@ -62,7 +109,7 @@ namespace SchedulingUI
 
 			foreach (IComponent c in components)
 			{
-				c.RequestRedraw += this.RequestRedraw;
+				c.RequestRedraw += OnRequestRedraw;
 				OnComponentAdded (this, new ComponentEventArgs (c));
 			}
 
@@ -70,7 +117,7 @@ namespace SchedulingUI
 
 		public void Remove(IComponent component)
 		{
-			component.RequestRedraw -= this.RequestRedraw;
+			component.RequestRedraw -= OnRequestRedraw;
 			Components.Remove (component);
 
 			OnComponentRemoved (this, new ComponentEventArgs (component));
@@ -78,32 +125,22 @@ namespace SchedulingUI
 
 		public abstract void DoLayout ();
 
-		public event EventHandler<ComponentEventArgs> OnComponentAdded;
+		#region Component implementation
 
-		public event EventHandler<ComponentEventArgs> OnComponentRemoved;
-
-		#region IComponent implementation
-		
-		public event EventHandler RequestRedraw;
-
-		public void Draw (IConsole buffer)
+		public override void Draw (IConsole buffer)
 		{
+			for (int x = 0; x < Width; x++) {
+				for (int y = 0; y < Height; y++) {
+					buffer.PutCharacter (x, y, ' ');
+				}
+			}
+
 			// draws in order of the component's z-index
 			foreach (IComponent component in Components)
 			{
 				component.Draw (buffer);
 			}
 		}
-
-		public int ZIndex { get; set; }
-
-		public int Left { get; set; }
-
-		public int Top { get; set; }
-
-		public int Width { get; set; }
-
-		public int Height { get; set; }
 
 		#endregion
 	}

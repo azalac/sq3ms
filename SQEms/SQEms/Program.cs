@@ -11,7 +11,20 @@ namespace SQEms
     {
         static void Main(string[] args)
         {
-            UITesting.test_box();
+			RootContainer root = new RootContainer (StandardConsole.INSTANCE);
+
+			FlowContainer container = new FlowContainer ();
+
+			container.Add (new Box (), new Box (), new Box ());
+
+			root.Add (container);
+
+			root.DoLayout ();
+
+			root.Draw ();
+
+			Console.ReadKey (true);
+
         }
     }
 }
