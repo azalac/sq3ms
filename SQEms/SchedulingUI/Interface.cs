@@ -14,7 +14,10 @@ namespace SchedulingUI
         int Width { get; set; }
         int Height { get; set; }
 
-        event EventHandler RequestRedraw;
+		int PreferredWidth{ get; }
+		int PreferredHeight{ get; }
+
+		event EventHandler<ComponentEventArgs> RequestRedraw;
 
         ConsoleColor Background { get; set; }
         ConsoleColor Foreground { get; set; }
@@ -51,21 +54,27 @@ namespace SchedulingUI
         public ConsoleColor Background { get; set; }
         public ConsoleColor Foreground { get; set; }
 
-        public event EventHandler RequestRedraw;
+        public event EventHandler<ComponentEventArgs> RequestRedraw;
 
-        public virtual void OnRequestRedraw(object sender, EventArgs args)
+		public virtual void OnRequestRedraw(object sender, ComponentEventArgs args)
         {
-            RequestRedraw(sender, args);
+			if (RequestRedraw != null) {
+				RequestRedraw (sender, args);
+			}
         }
 
         public virtual void OnComponentAdded(object sender, ComponentEventArgs args)
         {
-            ComponentAdded(sender, args);
+			if (ComponentAdded != null) {
+				ComponentAdded (sender, args);
+			}
         }
 
         public virtual void OnComponentRemoved(object sender, ComponentEventArgs args)
         {
-            ComponentRemoved(sender, args);
+			if (ComponentRemoved != null) {
+				ComponentRemoved (sender, args);
+			}
         }
 
         public int ZIndex { get; set; }
@@ -77,6 +86,9 @@ namespace SchedulingUI
         public int Width { get; set; }
 
         public int Height { get; set; }
+		
+		public int PreferredWidth{ get; set; }
+		public int PreferredHeight{ get; set; }
 
         public abstract void Draw(IConsole buffer);
 
@@ -160,14 +172,14 @@ namespace SchedulingUI
     }
 
     /// <summary>
-    /// An interface which respresents a (software) write-only console.
+    /// An interface which respresents a (application-side) write-only console.
     /// </summary>
     public interface IConsole
     {
         int BufferWidth { get; }
         int BufferHeight { get; }
 
-        bool SupportsUnicode { get; }
+        bool SupportsComplex { get; }
 
         ConsoleColor Foreground { get; set; }
         ConsoleColor Background { get; set; }
@@ -180,6 +192,8 @@ namespace SchedulingUI
         void PutCharacter(int x, int y, char c);
         void PutCharacter(int x, int y, int codepoint);
 
+		IConsole CreateSubconsole (int Left, int Top, int Width, int Height);
+
     }
 
     public class StandardConsole : IConsole
@@ -188,7 +202,7 @@ namespace SchedulingUI
 
         private StandardConsole()
         {
-            Console.OutputEncoding = Encoding.Unicode;
+
         }
 
         #region IConsole implementation
@@ -216,15 +230,20 @@ namespace SchedulingUI
         }
 
         public void SetCursorPosition(int x, int y)
-        {
-            Console.SetCursorPosition(x, y);
-        }
+		{
+			Console.SetCursorPosition (x, y);
+		}
+		
+		public IConsole CreateSubconsole (int Left, int Top, int Width, int Height)
+		{
+			return new Subconsole(this, Left, Top, Width, Height);
+		}
 
-        public bool SupportsUnicode
+        public bool SupportsComplex
         {
             get
             {
-                return Console.OutputEncoding == Encoding.Unicode;
+				return !Console.OutputEncoding.IsSingleByte;
             }
         }
 
@@ -270,7 +289,104 @@ namespace SchedulingUI
 
         #endregion
 
-
     }
+
+	public class Subconsole : IConsole
+	{
+		private IConsole parent;
+		private int Left, Top, Width, Height;
+
+		public Subconsole(IConsole parent, int Left, int Top, int Width, int Height)
+		{
+			this.parent = parent;
+			this.Left = Left;
+			this.Top = Top;
+			this.Width = Width;
+			this.Height = Height;
+		}
+
+		#region IConsole implementation
+
+		public void SetCursorPosition (int x, int y)
+		{
+			parent.SetCursorPosition (x, y);
+		}
+
+		public void PutCharacter (char c)
+		{
+			parent.PutCharacter (c);
+		}
+
+		public void PutCharacter (int codepoint)
+		{
+			parent.PutCharacter (codepoint);
+		}
+
+		public void PutCharacter (int x, int y, char c)
+		{
+			if (ValidPosition (x, y))
+			{
+				parent.PutCharacter (x, y, c);
+			}
+		}
+
+		public void PutCharacter (int x, int y, int codepoint)
+		{
+			if (ValidPosition (x, y))
+			{
+				parent.PutCharacter (x, y, codepoint);
+			}
+		}
+
+		public IConsole CreateSubconsole (int Left, int Top, int Width, int Height)
+		{
+			return new Subconsole(this, Left, Top, Width, Height);
+		}
+
+		private bool ValidPosition(int x, int y)
+		{
+			return x >= Left && x < Left + Width && y >= Top && y < Top + Height;
+		}
+
+		public int BufferWidth {
+			get {
+				return parent.BufferWidth;
+			}
+		}
+
+		public int BufferHeight {
+			get {
+				return parent.BufferHeight;
+			}
+		}
+
+		public bool SupportsComplex {
+			get {
+				return parent.SupportsComplex;
+			}
+		}
+
+		public ConsoleColor Foreground {
+			get {
+				return parent.Foreground;
+			}
+			set {
+				parent.Foreground = value;
+			}
+		}
+
+		public ConsoleColor Background {
+			get {
+				return parent.Background;
+			}
+			set {
+				parent.Background = value;
+			}
+		}
+
+		#endregion
+
+
+	}
 }
 
