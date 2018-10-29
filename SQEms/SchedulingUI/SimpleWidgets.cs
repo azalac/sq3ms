@@ -92,6 +92,44 @@ namespace SchedulingUI
 
 		public bool DoWrapping { get; set; }
 
+		public Label()
+		{
+			Text = "";
+		}
+
+		public Tuple<int, int> GetCharPos(int i)
+		{
+			// if there's no more room for the (non-wrapped) text
+			// or if the index is invalid, return null
+			if (i >= Width && !DoWrapping)
+			{
+				return null;
+			}
+
+			// if the text should be centered, and there's room, determine the offset
+			int x_offset = 0;
+			if (Center && Text.Length < Width)
+			{
+				x_offset = Width / 2 - Text.Length / 2;
+			}
+
+
+			// calculate the relative position
+			int x = i % Width + x_offset;
+			int y = i / Width;
+
+			return new Tuple<int, int> (x, y);
+		}
+
+		public Rectangle GetTextArea()
+		{
+			Tuple<int, int> TopLeft = GetCharPos (0);
+			Tuple<int, int> BottomRight = GetCharPos (Text.Length);
+
+			return Rectangle.BetweenCoords (TopLeft.Item1 + Left, TopLeft.Item2 + Top,
+			                               BottomRight.Item1 + Left, BottomRight.Item2 + Top);
+		}
+
 		#region implemented abstract members of Component
 
 		public override void Draw (IConsole buffer)
@@ -103,30 +141,14 @@ namespace SchedulingUI
 
 			for (int i = 0; i < Text.Length; i++)
 			{
-				// if there's no more room for the (non-wrapped) text
-				if (i >= Width && !DoWrapping)
+				Tuple<int, int> pos = GetCharPos (i);
+
+				if (pos == null || pos.Item2 > Height)
 				{
 					break;
 				}
 
-				int x_offset = 0;
-
-				// if the text should be centered, and there's room, determine the offset
-				if (Center && Text.Length < Width)
-				{
-					x_offset = Width / 2 - Text.Length / 2;
-				}
-
-				int x = i % Width + x_offset;
-				int y = i / Width;
-
-				// if there's no more room for the text
-				if (y > Height)
-				{
-					break;
-				}
-
-				buffer.PutCharacter (x + Left, y + Top, Text [i]);
+				buffer.PutCharacter (pos.Item1 + Left, pos.Item2 + Top, Text [i]);
 			}
 		}
 
@@ -285,8 +307,6 @@ namespace SchedulingUI
     {
         public IConsole Console { get; private set; }
 
-		public event EventHandler<ConsoleKeyEventArgs> KeyPress;
-
         public RootContainer(IConsole console)
         {
             ComponentAdded += CheckCount;
@@ -305,13 +325,13 @@ namespace SchedulingUI
             }
         }
 
-		private void Redraw(object sender, ComponentEventArgs e)
+		private void Redraw(object sender, RedrawEventArgs e)
 		{
 			// if there's a component to redraw, redraw it
 			// otherwise redraw the entire buffer
-			if (e != null && e.Component != null)
+			if (e.HasArea)
 			{
-				Draw (e.Component);
+				Draw (e.Area.Left, e.Area.Top, e.Area.Width, e.Area.Height);
 			}
 			else
 			{
@@ -334,11 +354,6 @@ namespace SchedulingUI
 			Draw (component.Left, component.Top, component.Width, component.Height);
 		}
 
-		public void OnKeyPress(object sender, ConsoleKeyInfo key)
-		{
-			KeyPress (sender, new ConsoleKeyEventArgs (key));
-		}
-
         #region implemented abstract members of IContainer
 
         public override void DoLayout()
@@ -352,11 +367,24 @@ namespace SchedulingUI
                 root.Height = Console.BufferHeight;
                 root.Width = Console.BufferWidth;
 
+				if (root is Component)
+				{
+					(root as Component).Visible = true;
+				}
+
                 if (root is Container)
                 {
                     (root as Container).DoLayout();
                 }
             }
+
+			for (int i = 1; i < Components.Count; i++)
+			{
+				if (Components [i] is Component)
+				{
+					(Components [i] as Component).Visible = false;
+				}
+			}
         }
 
         #endregion
