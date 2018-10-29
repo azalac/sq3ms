@@ -4,4 +4,6 @@
 *.mdb
 *.userprefs
 *~
-
+*FilesWrittenAbsolute.txt
+*AssemblyAttribute.cs
+*.java
