@@ -128,8 +128,8 @@ namespace EventQueueStuff
         /// <summary>
         /// The event handlers
         /// </summary>
-        private Dictionary<T, EventQueueUtils.Adapter<object, object>> handlers =
-			new Dictionary<T, EventQueueUtils.Adapter<object, object>>();
+        private Dictionary<T, Adapter<object, object>> handlers =
+			new Dictionary<T, Adapter<object, object>>();
         
         #region Handler Register Methods
 
@@ -172,7 +172,7 @@ namespace EventQueueStuff
         /// </summary>
         /// <param name="evt">The event</param>
         /// <param name="handler">The parameter</param>
-		public void RegisterEventHandler_InOut(T evt, EventQueueUtils.Adapter<object, object> handler)
+		public void RegisterEventHandler_InOut(T evt, Adapter<object, object> handler)
         {
             handlers[evt] = handler;
         }
@@ -670,7 +670,7 @@ namespace EventQueueStuff
 
         public object Argument { get; set; }
         
-		public Dictionary<T, EventQueueUtils.Adapter<object, object>> Handlers { get; set; }
+		public Dictionary<T, Adapter<object, object>> Handlers { get; set; }
 
         public object Lock {
 			get{ return Event;}
@@ -693,7 +693,7 @@ namespace EventQueueStuff
 
         public Dictionary<string, Tuple<object, string>> Context { get; set; }
 
-		public Dictionary<T, EventQueueUtils.Adapter<object, object>> Handlers { get; set; }
+		public Dictionary<T, Adapter<object, object>> Handlers { get; set; }
 
 		public static bool DebugPrint { get; set; }
 
@@ -780,16 +780,17 @@ namespace EventQueueStuff
             }
         }
 
-        /// <summary>
-        /// The interface which all handlers get converted to.
-        /// </summary>
-        /// <typeparam name="P">The input type</typeparam>
-        /// <typeparam name="R">The output type</typeparam>
-        /// <param name="t">The input parameter</param>
-        /// <returns>The output object</returns>
-        public delegate R Adapter<in P, out R>(P t);
 
     }
+	
+	/// <summary>
+	/// The interface which all handlers get converted to.
+	/// </summary>
+	/// <typeparam name="P">The input type</typeparam>
+	/// <typeparam name="R">The output type</typeparam>
+	/// <param name="t">The input parameter</param>
+	/// <returns>The output object</returns>
+	public delegate R Adapter<in P, out R>(P t);
 
     /// <summary>
     /// An exception class which is thrown from the EventQueueUtils.TryParamCast
