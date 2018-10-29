@@ -22,8 +22,8 @@ namespace SchedulingUI
 			Text = "";
 			this.TextLength = TextLength;
 			KeyPress += HandleKeyPress;
-			Background = ConsoleColor.White;
-			Foreground = ConsoleColor.Black;
+            Background = ColorCategory.BACKGROUND;
+			Foreground = ColorCategory.FOREGROUND;
 		}
 
 		private void HandleKeyPress(object sender, ConsoleKeyEventArgs args)
@@ -218,13 +218,29 @@ namespace SchedulingUI
 		}
 	}
 
-	public class InputArea : Container
+    public class Button : Label, IFocusable
+    {
+        public bool HasFocus { get; set; }
+
+        public Button()
+        {
+            this.KeyPress += HandleKeyPress;
+        }
+
+        private void HandleKeyPress(object sender, ConsoleKeyEventArgs args)
+        {
+
+        }
+    }
+
+
+    public class InputArea : Container
 	{
-		private string[] fields;
+		private readonly string[] fields;
 
-		private Label[] labels;
+		private readonly Label[] labels;
 
-		private TextInput[] inputs;
+		private readonly IComponent[] components;
 
 		private int selectedIndex = 0;
 
@@ -237,11 +253,17 @@ namespace SchedulingUI
 
 			set
 			{
-				inputs [selectedIndex].HasFocus = false;
-				OnRequestRedraw (this, new RedrawEventArgs (inputs[selectedIndex]));
+                if (components[selectedIndex] is IFocusable)
+                {
+                    (components[selectedIndex] as IFocusable).HasFocus = false;
+                }
+				OnRequestRedraw (this, new RedrawEventArgs (components[selectedIndex]));
 				selectedIndex = value;
-				inputs [selectedIndex].HasFocus = true;
-				OnRequestRedraw (this, new RedrawEventArgs (inputs[selectedIndex]));
+                if (components[selectedIndex] is IFocusable)
+                {
+                    (components[selectedIndex] as IFocusable).HasFocus = true;
+                }
+                OnRequestRedraw (this, new RedrawEventArgs (components[selectedIndex]));
 			}
 		}
 
@@ -252,6 +274,7 @@ namespace SchedulingUI
 
 		/// <summary>
 		/// The width of inputs, or 0 for automatic.
+        /// Limits text to value - 1.
 		/// </summary>
 		public int InputWidth { get; set; }
 
@@ -264,11 +287,11 @@ namespace SchedulingUI
 		{
 			this.fields = fields;
 
-			Background = ConsoleColor.White;
-			Foreground = ConsoleColor.Black;
+			Background = ColorCategory.BACKGROUND;
+			Foreground = ColorCategory.FOREGROUND;
 
 			labels = new Label[fields.Length];
-			inputs = new TextInput[fields.Length];
+			components = new TextInput[fields.Length];
 
 			for (int i = 0; i < fields.Length; i++)
 			{
@@ -277,7 +300,7 @@ namespace SchedulingUI
 					ZIndex = 2 * i
 				};
 
-				inputs [i] = new TextInput () {
+				components [i] = new TextInput () {
 					ZIndex = 2 * i + 1
 				};
 			}
@@ -285,19 +308,19 @@ namespace SchedulingUI
 			KeyPress += HandleKeyPress;
 
 			Add (labels);
-			Add (inputs);
+			Add (components);
 
 			// needed to make focus valid
 			SelectedIndex = 0;
 		}
 
-		public string this[string field]
+		public IComponent this[string field]
 		{
 			get
 			{
 				if (Array.Exists (fields, field.Equals))
 				{
-					return inputs [Array.IndexOf (fields, fields)].Text;
+					return components [Array.IndexOf (fields, fields)];
 				}
 				else
 				{
@@ -361,12 +384,16 @@ namespace SchedulingUI
 				l.Width = lw;
 				l.Height = height;
 
-				TextInput t = inputs [i];
+				IComponent t = components [i];
 				t.Top = i * height + Top;
 				t.Left = lw + 1 + Left;
 				t.Width = InputWidth == 0 ? Width - lw - 1 : InputWidth;
-				t.TextLength = t.Width;
 				t.Height = height;
+
+                if (t is TextInput)
+                {
+                    (t as TextInput).TextLength = t.Width;
+                }
 			}
 		}
 

@@ -17,6 +17,7 @@ namespace SQEms
 			InputArea inputs = new InputArea ("one", "two", "three")
 			{
 				RowHeight = 2,
+                InputWidth = 20
 			};
 
 			root.Add (inputs);
