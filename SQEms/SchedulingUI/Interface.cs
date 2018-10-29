@@ -17,13 +17,30 @@ namespace SchedulingUI
 		int PreferredWidth{ get; }
 		int PreferredHeight{ get; }
 
-		event EventHandler<ComponentEventArgs> RequestRedraw;
+		bool Visible { get; }
+
+		/// <summary>
+		/// A Redraw event is a 'bottom-up' event. A sub component invokes it,
+		/// and it is handled by a parent component.
+		/// </summary>
+		event EventHandler<RedrawEventArgs> RequestRedraw;
+
+		/// <summary>
+		/// A KeyPress event is a 'top-down' event. A parent invokes it, and
+		/// it is handled by all the children.
+		/// </summary>
+		event EventHandler<ConsoleKeyEventArgs> KeyPress;
 
         ConsoleColor Background { get; set; }
         ConsoleColor Foreground { get; set; }
 
         void Draw(IConsole buffer);
     }
+
+	public interface IFocusable
+	{
+		bool HasFocus { get; set; }
+	}
 
     class Comparator<T, R> : IComparer<T>
         where R : IComparable
@@ -54,28 +71,41 @@ namespace SchedulingUI
         public ConsoleColor Background { get; set; }
         public ConsoleColor Foreground { get; set; }
 
-        public event EventHandler<ComponentEventArgs> RequestRedraw;
+        public event EventHandler<RedrawEventArgs> RequestRedraw;
 
-		public virtual void OnRequestRedraw(object sender, ComponentEventArgs args)
-        {
-			if (RequestRedraw != null) {
+		public event EventHandler<ConsoleKeyEventArgs> KeyPress;
+
+		public virtual void OnRequestRedraw(object sender, RedrawEventArgs args)
+		{
+			if (RequestRedraw != null)
+			{
 				RequestRedraw (sender, args);
 			}
         }
 
         public virtual void OnComponentAdded(object sender, ComponentEventArgs args)
         {
-			if (ComponentAdded != null) {
+			if (ComponentAdded != null)
+			{
 				ComponentAdded (sender, args);
 			}
         }
 
         public virtual void OnComponentRemoved(object sender, ComponentEventArgs args)
         {
-			if (ComponentRemoved != null) {
+			if (ComponentRemoved != null)
+			{
 				ComponentRemoved (sender, args);
 			}
         }
+
+		public virtual void OnKeyPressed(object keyboard, ConsoleKeyEventArgs args)
+		{
+			if (KeyPress != null)
+			{
+				KeyPress (keyboard, args);
+			}
+		}
 
         public int ZIndex { get; set; }
 
@@ -86,7 +116,9 @@ namespace SchedulingUI
         public int Width { get; set; }
 
         public int Height { get; set; }
-		
+
+		public bool Visible { get; set; }
+
 		public int PreferredWidth{ get; set; }
 		public int PreferredHeight{ get; set; }
 
@@ -110,7 +142,12 @@ namespace SchedulingUI
             Components.Add(component);
             Components.Sort(compare);
 
-            component.RequestRedraw += OnRequestRedraw;
+            component.RequestRedraw += this.OnRequestRedraw;
+
+			if(component is Component){
+				(component as Component).Visible = true;
+				KeyPress += (component as Component).OnKeyPressed;
+			}
 
             OnComponentAdded(this, new ComponentEventArgs(component));
         }
@@ -123,7 +160,13 @@ namespace SchedulingUI
 
             foreach (IComponent c in components)
             {
-                c.RequestRedraw += OnRequestRedraw;
+				c.RequestRedraw += this.OnRequestRedraw;
+				
+				if(c is Component){
+					(c as Component).Visible = true;
+					KeyPress += (c as Component).OnKeyPressed;
+				}
+
                 OnComponentAdded(this, new ComponentEventArgs(c));
             }
 
@@ -131,7 +174,12 @@ namespace SchedulingUI
 
         public void Remove(IComponent component)
         {
-            component.RequestRedraw -= OnRequestRedraw;
+            component.RequestRedraw -= this.OnRequestRedraw;
+			
+			if(component is Component){
+				KeyPress += (component as Component).OnKeyPressed;
+			}
+
             Components.Remove(component);
 
             OnComponentRemoved(this, new ComponentEventArgs(component));
@@ -143,6 +191,11 @@ namespace SchedulingUI
 
         public override void Draw(IConsole buffer)
         {
+
+			buffer.Background = Background;
+			buffer.Foreground = Foreground;
+
+			// clear the background of this container
             for (int x = 0; x < Width; x++)
             {
                 for (int y = 0; y < Height; y++)
@@ -154,7 +207,20 @@ namespace SchedulingUI
             // draws in order of the component's z-index
             foreach (IComponent component in Components)
             {
-                component.Draw(buffer);
+				if (component.Visible)
+				{
+					// save the console's colors
+					ConsoleColor pre_fg = buffer.Foreground;
+					ConsoleColor pre_bg = buffer.Background;
+
+
+					component.Draw (buffer);
+
+
+					// load the console's colors
+					buffer.Foreground = pre_fg;
+					buffer.Background = pre_bg;
+				}
             }
         }
 
@@ -170,6 +236,29 @@ namespace SchedulingUI
             Component = component;
         }
     }
+
+	public class RedrawEventArgs : EventArgs
+	{
+		public Rectangle Area { get; private set; }
+
+		public bool HasArea { get; private set; }
+
+		public RedrawEventArgs(Rectangle r)
+		{
+			Area = r;
+			HasArea = true;
+		}
+
+		public RedrawEventArgs(IComponent c):
+			this(new Rectangle(c))
+		{
+		}
+
+		public RedrawEventArgs()
+		{
+			HasArea = false;
+		}
+	}
 
     /// <summary>
     /// An interface which respresents a (application-side) write-only console.
@@ -191,6 +280,9 @@ namespace SchedulingUI
 
         void PutCharacter(int x, int y, char c);
         void PutCharacter(int x, int y, int codepoint);
+		
+		void PutString (int x, int y, string s);
+		void PutString (int x, int y, string s, int length);
 
 		IConsole CreateSubconsole (int Left, int Top, int Width, int Height);
 
@@ -228,6 +320,18 @@ namespace SchedulingUI
             SetCursorPosition(x, y);
             PutCharacter(codepoint);
         }
+
+		public void PutString (int x, int y, string s)
+		{
+			SetCursorPosition (x, y);
+			Console.Write (s);
+		}
+
+		public void PutString (int x, int y, string s, int length)
+		{
+			SetCursorPosition (x, y);
+			Console.Write (s.ToCharArray(), 0, length);
+		}
 
         public void SetCursorPosition(int x, int y)
 		{
@@ -335,6 +439,22 @@ namespace SchedulingUI
 			if (ValidPosition (x, y))
 			{
 				parent.PutCharacter (x, y, codepoint);
+			}
+		}
+		
+		public void PutString (int x, int y, string s)
+		{
+			if (ValidPosition (x, y))
+			{
+				parent.PutString (x, y, s);
+			}
+		}
+		
+		public void PutString (int x, int y, string s, int length)
+		{
+			if (ValidPosition (x, y))
+			{
+				parent.PutString (x, y, s, length);
 			}
 		}
 
