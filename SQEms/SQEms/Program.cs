@@ -14,36 +14,31 @@ namespace SQEms
 		{
 			RootContainer root = new RootContainer (StandardConsole.INSTANCE);
 
-			FlowContainer container = new FlowContainer ();
-
-			Label l = new Label () {
-				Text = "asdasdasdasdasdasdasdasdasdasdsdadasdasdasd",
-				PreferredWidth = 1,
-				DoWrapping = true
+			InputArea inputs = new InputArea ("one", "two", "three")
+			{
+				RowHeight = 2,
 			};
 
-			container.Add (new Box () { PreferredWidth = 5 }, new Box () { PreferredWidth = 5 },
-			               new Box () { PreferredWidth = 5 }, l);
+			root.Add (inputs);
 
-			root.Add (container);
-
+			inputs.DoLayout ();
 			root.DoLayout ();
 			root.Draw ();
-
-			root.KeyPress += (object sender, ConsoleKeyEventArgs e) => {
-				l.Text = e.Key.KeyChar.ToString();
-				root.Draw(l);
-			};
 
 			KeyboardInput input = new KeyboardInput (root)
 			{
 				ExitKey = ConsoleKey.Escape
 			};
 
+			Console.CursorVisible = false;
+
 			input.StartThread ();
 
 			input.InternalThread.Join ();
 
+			Console.Clear ();
+			Console.ResetColor ();
+			Console.CursorVisible = true;
 		}
     }
 }
