@@ -48,6 +48,8 @@
     <Compile Include="Interface.cs" />
     <Compile Include="SimpleWidgets.cs" />
     <Compile Include="KeyboardInput.cs" />
+    <Compile Include="AdvancedWidgets.cs" />
+    <Compile Include="Geometry.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
