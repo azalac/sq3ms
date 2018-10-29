@@ -47,7 +47,7 @@ namespace SchedulingUI
 
 				if (Container != null)
 				{
-					Container.OnKeyPress (this, key);
+					Container.OnKeyPressed (this, new ConsoleKeyEventArgs(key));
 				}
 				else
 				{
