@@ -97,6 +97,11 @@ namespace SchedulingUI
 			Text = "";
 		}
 
+        /// <summary>
+        /// Gets the relative position for a character's position.
+        /// </summary>
+        /// <param name="i">The character's index</param>
+        /// <returns>The relative position</returns>
 		public Tuple<int, int> GetCharPos(int i)
 		{
 			// if there's no more room for the (non-wrapped) text
@@ -121,6 +126,10 @@ namespace SchedulingUI
 			return new Tuple<int, int> (x, y);
 		}
 
+        /// <summary>
+        /// Gets the rectangle which covers all text in this label.
+        /// </summary>
+        /// <returns></returns>
 		public Rectangle GetTextArea()
 		{
 			Tuple<int, int> TopLeft = GetCharPos (0);
@@ -161,6 +170,7 @@ namespace SchedulingUI
     {
         /// <summary>
         /// If this grid container draws and accounts for the borders between cells.
+        /// TODO: implement the drawing
         /// </summary>
         public bool DrawBorders { get; set; }
 
@@ -260,15 +270,21 @@ namespace SchedulingUI
 			{
 				IComponent comp = Components [i];
 
-				comp.Top = current_height;
+                comp.Top = current_height;
 				comp.Left = 0;
 
 				comp.Width = Width;
 				comp.Height = (int)(Height * heights [i] / sum);
 
 				current_height += comp.Height;
-			}
-		}
+
+                if (comp is Container)
+                {
+                    (comp as Container).DoLayout();
+                }
+
+            }
+        }
 
 		private void LayoutHorizontal()
 		{
@@ -297,8 +313,14 @@ namespace SchedulingUI
 				comp.Height = Height;
 
 				current_width += comp.Width;
-			}
-		}
+
+                if (comp is Container)
+                {
+                    (comp as Container).DoLayout();
+                }
+
+            }
+        }
 
 		#endregion
     }
@@ -306,6 +328,8 @@ namespace SchedulingUI
     public class RootContainer : Container
     {
         public IConsole Console { get; private set; }
+
+		public Component FocusedComponent { get; private set; }
 
         public RootContainer(IConsole console)
         {
@@ -325,11 +349,26 @@ namespace SchedulingUI
             }
         }
 
+		private void SetFocus(object sender, ComponentEventArgs component)
+		{
+			if (FocusedComponent != null)
+			{
+				FocusedComponent.HasFocus = false;
+			}
+
+			FocusedComponent = component.Component as Component;
+
+			if (FocusedComponent != null)
+			{
+				FocusedComponent.HasFocus = true;
+			}
+		}
+
 		private void Redraw(object sender, RedrawEventArgs e)
 		{
-			// if there's a component to redraw, redraw it
+			// if there's an area to redraw, redraw it
 			// otherwise redraw the entire buffer
-			if (e.HasArea)
+			if (e != null && e.HasArea)
 			{
 				Draw (e.Area.Left, e.Area.Top, e.Area.Width, e.Area.Height);
 			}

@@ -1,7 +1,5 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Text;
 
 namespace SchedulingUI
 {
@@ -31,16 +29,15 @@ namespace SchedulingUI
 		/// </summary>
 		event EventHandler<ConsoleKeyEventArgs> KeyPress;
 
-        ConsoleColor Background { get; set; }
-        ConsoleColor Foreground { get; set; }
+        ColorCategory Background { get; set; }
+        ColorCategory Foreground { get; set; }
 
-        void Draw(IConsole buffer);
+        /// <summary>
+        /// Draws this component on the buffer.
+        /// </summary>
+        /// <param name="buffer"></param>
+		void Draw (IConsole buffer);
     }
-
-	public interface IFocusable
-	{
-		bool HasFocus { get; set; }
-	}
 
     class Comparator<T, R> : IComparer<T>
         where R : IComparable
@@ -68,12 +65,14 @@ namespace SchedulingUI
 
         public event EventHandler<ComponentEventArgs> ComponentRemoved;
 
-        public ConsoleColor Background { get; set; }
-        public ConsoleColor Foreground { get; set; }
-
-        public event EventHandler<RedrawEventArgs> RequestRedraw;
+		public event EventHandler<ComponentEventArgs> RequestFocus;
+		
+		public event EventHandler<RedrawEventArgs> RequestRedraw;
 
 		public event EventHandler<ConsoleKeyEventArgs> KeyPress;
+
+        public ColorCategory Background { get; set; }
+        public ColorCategory Foreground { get; set; }
 
 		public virtual void OnRequestRedraw(object sender, RedrawEventArgs args)
 		{
@@ -107,6 +106,14 @@ namespace SchedulingUI
 			}
 		}
 
+		public virtual void OnRequestFocus(object sender, ComponentEventArgs new_focus)
+		{
+			if (RequestFocus != null)
+			{
+				RequestFocus(sender, new_focus);
+			}
+		}
+
         public int ZIndex { get; set; }
 
         public int Left { get; set; }
@@ -121,6 +128,8 @@ namespace SchedulingUI
 
 		public int PreferredWidth{ get; set; }
 		public int PreferredHeight{ get; set; }
+
+		public bool HasFocus { get; set; }
 
         public abstract void Draw(IConsole buffer);
 
@@ -147,6 +156,8 @@ namespace SchedulingUI
 			if(component is Component){
 				(component as Component).Visible = true;
 				KeyPress += (component as Component).OnKeyPressed;
+				(component as Component).RequestFocus += this.OnRequestFocus;
+
 			}
 
             OnComponentAdded(this, new ComponentEventArgs(component));
@@ -165,6 +176,8 @@ namespace SchedulingUI
 				if(c is Component){
 					(c as Component).Visible = true;
 					KeyPress += (c as Component).OnKeyPressed;
+					(c as Component).RequestFocus += this.OnRequestFocus;
+
 				}
 
                 OnComponentAdded(this, new ComponentEventArgs(c));
@@ -209,17 +222,11 @@ namespace SchedulingUI
             {
 				if (component.Visible)
 				{
-					// save the console's colors
-					ConsoleColor pre_fg = buffer.Foreground;
-					ConsoleColor pre_bg = buffer.Background;
-
+                    buffer.PushColors();
 
 					component.Draw (buffer);
 
-
-					// load the console's colors
-					buffer.Foreground = pre_fg;
-					buffer.Background = pre_bg;
+                    buffer.PopColors();
 				}
             }
         }
@@ -260,8 +267,7 @@ namespace SchedulingUI
 		}
 	}
 
-    /// <summary>
-    /// An interface which respresents a (application-side) write-only console.
+    /// An interface which respresents a write-only console. Does not necessarily represent a real console.
     /// </summary>
     public interface IConsole
     {
@@ -270,8 +276,8 @@ namespace SchedulingUI
 
         bool SupportsComplex { get; }
 
-        ConsoleColor Foreground { get; set; }
-        ConsoleColor Background { get; set; }
+        ColorCategory Foreground { set; }
+        ColorCategory Background { set; }
 
         void SetCursorPosition(int x, int y);
 
@@ -284,13 +290,21 @@ namespace SchedulingUI
 		void PutString (int x, int y, string s);
 		void PutString (int x, int y, string s, int length);
 
+        void PushColors();
+        void PopColors();
+
 		IConsole CreateSubconsole (int Left, int Top, int Width, int Height);
 
     }
 
+    /// <summary>
+    /// Represents the <seealso cref="Console"/> class.
+    /// </summary>
     public class StandardConsole : IConsole
     {
         public static readonly StandardConsole INSTANCE = new StandardConsole();
+
+        private Stack<Tuple<ConsoleColor, ConsoleColor>> colors = new Stack<Tuple<ConsoleColor, ConsoleColor>>();
 
         private StandardConsole()
         {
@@ -343,6 +357,19 @@ namespace SchedulingUI
 			return new Subconsole(this, Left, Top, Width, Height);
 		}
 
+        public void PushColors()
+        {
+            colors.Push(new Tuple<ConsoleColor, ConsoleColor>(Console.ForegroundColor, Console.BackgroundColor));
+        }
+
+        public void PopColors()
+        {
+            Tuple<ConsoleColor, ConsoleColor> c = colors.Pop();
+
+            Console.ForegroundColor = c.Item1;
+            Console.BackgroundColor = c.Item2;
+        }
+
         public bool SupportsComplex
         {
             get
@@ -367,27 +394,19 @@ namespace SchedulingUI
             }
         }
 
-        public ConsoleColor Foreground
+        public ColorCategory Foreground
         {
-            get
-            {
-                return Console.ForegroundColor;
-            }
             set
             {
-                Console.ForegroundColor = value;
+                Console.ForegroundColor = ColorScheme.Current[value];
             }
         }
 
-        public ConsoleColor Background
+        public ColorCategory Background
         {
-            get
-            {
-                return Console.BackgroundColor;
-            }
             set
             {
-                Console.BackgroundColor = value;
+                Console.BackgroundColor = ColorScheme.Current[value];
             }
         }
 
@@ -395,6 +414,9 @@ namespace SchedulingUI
 
     }
 
+    /// <summary>
+    /// A sub-console which only draws the characters within the specified area. Does not properly support putstring.
+    /// </summary>
 	public class Subconsole : IConsole
 	{
 		private IConsole parent;
@@ -468,7 +490,18 @@ namespace SchedulingUI
 			return x >= Left && x < Left + Width && y >= Top && y < Top + Height;
 		}
 
-		public int BufferWidth {
+        public void PushColors()
+        {
+            parent.PushColors();
+        }
+
+        public void PopColors()
+        {
+            parent.PopColors();
+        }
+
+        public int BufferWidth {
+
 			get {
 				return parent.BufferWidth;
 			}
@@ -486,27 +519,25 @@ namespace SchedulingUI
 			}
 		}
 
-		public ConsoleColor Foreground {
-			get {
-				return parent.Foreground;
-			}
+		public ColorCategory Foreground {
 			set {
 				parent.Foreground = value;
 			}
 		}
 
-		public ConsoleColor Background {
-			get {
-				return parent.Background;
-			}
+		public ColorCategory Background {
 			set {
 				parent.Background = value;
 			}
 		}
 
+
 		#endregion
 
 
 	}
+
+
+    
 }
 
