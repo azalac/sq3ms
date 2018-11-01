@@ -1,6 +1,0 @@
-C:\Users\azalac0020\Desktop\sqems\SQEms\SchedulingUI\bin\Debug\SchedulingUI.dll
-C:\Users\azalac0020\Desktop\sqems\SQEms\SchedulingUI\bin\Debug\SchedulingUI.pdb
-C:\Users\azalac0020\Desktop\sqems\SQEms\SchedulingUI\obj\Debug\SchedulingUI.csprojAssemblyReference.cache
-C:\Users\azalac0020\Desktop\sqems\SQEms\SchedulingUI\obj\Debug\SchedulingUI.csproj.CoreCompileInputs.cache
-C:\Users\azalac0020\Desktop\sqems\SQEms\SchedulingUI\obj\Debug\SchedulingUI.dll
-C:\Users\azalac0020\Desktop\sqems\SQEms\SchedulingUI\obj\Debug\SchedulingUI.pdb
