@@ -14,12 +14,49 @@ namespace SQEms
 		{
 			RootContainer root = new RootContainer (StandardConsole.INSTANCE);
 
+			TabbedPane pane = new TabbedPane ();
+
 			InputArea inputs = new InputArea ("one", "two", "three")
 			{
 				RowHeight = 2,
+                InputWidth = 20
 			};
 
-			root.Add (inputs);
+			Button s = new Button ()
+			{
+				Text = "Submit"
+			};
+			
+			Button s2 = new Button ()
+			{
+				Text = "Submit"
+			};
+			
+			GridContainer flow = new GridContainer ()
+			{
+				CountY = 2
+			};
+
+			s.Action += (object sender, EventArgs e) => {
+				pane.SelectedIndex = 1;
+				pane.DoLayout();
+				pane.OnRequestRedraw(s, null);
+				System.Diagnostics.Debug.Write("One");
+			};
+
+			s2.Action += (object sender, EventArgs e) => {
+				pane.SelectedIndex = 0;
+				pane.DoLayout();
+				pane.OnRequestRedraw(s2, null);
+				System.Diagnostics.Debug.Write("Two");
+			};
+
+			inputs ["three"] = s;
+
+			flow.Add (new Label () { Text = "Hello World"}, s2);
+
+			pane.Add (inputs, flow);
+			root.Add (pane);
 
 			inputs.DoLayout ();
 			root.DoLayout ();

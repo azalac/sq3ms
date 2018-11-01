@@ -3,11 +3,36 @@ using System;
 using System.Collections.Generic;
 using System.Collections;
 using System.Text;
+using System.Threading;
 
 namespace SchedulingUI
 {
 
-	public class TextInput : Label, IFocusable
+	public class InterfaceEvent
+	{
+		public static readonly InterfaceEvent
+			REDRAW = new InterfaceEvent(),
+			SET_FOCUS = new InterfaceEventThread();
+
+	}
+
+	public class InterfaceEventThread
+	{
+		public static EventQueue<InterfaceEvent> Queue { get; private set; }
+
+		private static Thread QueueThread;
+
+		static InterfaceEventThread()
+		{
+			Queue = new EventQueue<InterfaceEvent> ();
+
+			QueueThread = new Thread (new ThreadStart (Queue));
+
+			QueueThread.Start ();
+		}
+	}
+
+	public class TextInput : Label
 	{
 
 		#region IFocusable implementation
@@ -22,8 +47,8 @@ namespace SchedulingUI
 			Text = "";
 			this.TextLength = TextLength;
 			KeyPress += HandleKeyPress;
-			Background = ConsoleColor.White;
-			Foreground = ConsoleColor.Black;
+            Background = ColorCategory.BACKGROUND;
+			Foreground = ColorCategory.FOREGROUND;
 		}
 
 		private void HandleKeyPress(object sender, ConsoleKeyEventArgs args)
@@ -218,13 +243,42 @@ namespace SchedulingUI
 		}
 	}
 
-	public class InputArea : Container
+	public class Button : Label
+    {
+		public event EventHandler Action;
+
+        public Button()
+        {
+			this.KeyPress += HandleKeyPress;
+			Background = ColorCategory.BACKGROUND;
+			Foreground = ColorCategory.FOREGROUND;
+			Text = "Button";
+        }
+
+        private void HandleKeyPress(object sender, ConsoleKeyEventArgs args)
+		{
+			if (HasFocus && args.Key.Key == ConsoleKey.Enter) {
+				Action (this, null);
+			}
+		}
+
+		public override void Draw (IConsole buffer)
+		{
+			
+			buffer.Foreground = HasFocus ? Background : Foreground;
+			buffer.Background = HasFocus ? Foreground : Background;
+
+			base.Draw (buffer);
+		}
+	}
+
+    public class InputArea : Container
 	{
-		private string[] fields;
+		private readonly string[] fields;
 
-		private Label[] labels;
+		private readonly Label[] labels;
 
-		private TextInput[] inputs;
+		private readonly IComponent[] components;
 
 		private int selectedIndex = 0;
 
@@ -237,11 +291,11 @@ namespace SchedulingUI
 
 			set
 			{
-				inputs [selectedIndex].HasFocus = false;
-				OnRequestRedraw (this, new RedrawEventArgs (inputs[selectedIndex]));
+				OnRequestRedraw (this, new RedrawEventArgs (components [selectedIndex]));
 				selectedIndex = value;
-				inputs [selectedIndex].HasFocus = true;
-				OnRequestRedraw (this, new RedrawEventArgs (inputs[selectedIndex]));
+                
+				OnRequestRedraw (this, new RedrawEventArgs (components [selectedIndex]));
+				OnRequestFocus (this, new ComponentEventArgs (components [selectedIndex]));
 			}
 		}
 
@@ -252,6 +306,7 @@ namespace SchedulingUI
 
 		/// <summary>
 		/// The width of inputs, or 0 for automatic.
+        /// Limits text to value - 1.
 		/// </summary>
 		public int InputWidth { get; set; }
 
@@ -264,11 +319,11 @@ namespace SchedulingUI
 		{
 			this.fields = fields;
 
-			Background = ConsoleColor.White;
-			Foreground = ConsoleColor.Black;
+			Background = ColorCategory.BACKGROUND;
+			Foreground = ColorCategory.FOREGROUND;
 
 			labels = new Label[fields.Length];
-			inputs = new TextInput[fields.Length];
+			components = new IComponent[fields.Length];
 
 			for (int i = 0; i < fields.Length; i++)
 			{
@@ -277,7 +332,7 @@ namespace SchedulingUI
 					ZIndex = 2 * i
 				};
 
-				inputs [i] = new TextInput () {
+				components [i] = new TextInput () {
 					ZIndex = 2 * i + 1
 				};
 			}
@@ -285,23 +340,34 @@ namespace SchedulingUI
 			KeyPress += HandleKeyPress;
 
 			Add (labels);
-			Add (inputs);
+			Add (components);
 
 			// needed to make focus valid
 			SelectedIndex = 0;
 		}
 
-		public string this[string field]
+		public IComponent this[string field]
 		{
 			get
 			{
 				if (Array.Exists (fields, field.Equals))
 				{
-					return inputs [Array.IndexOf (fields, fields)].Text;
+					return components [Array.IndexOf (fields, field)];
 				}
 				else
 				{
 					return null;
+				}
+			}
+
+			set
+			{
+				if (Array.Exists (fields, field.Equals))
+				{
+					int i = Array.IndexOf (fields, field);
+					Remove (components [i]);
+					components [i] = value;
+					Add (components [i]);
 				}
 			}
 		}
@@ -311,12 +377,10 @@ namespace SchedulingUI
 			if (args.Key.Key == ConsoleKey.UpArrow)
 			{
 				SelectedIndex = Mod(SelectedIndex - 1, fields.Length);
-
 			}
 			else if (args.Key.Key == ConsoleKey.DownArrow)
 			{
 				SelectedIndex = Mod(SelectedIndex + 1, fields.Length);
-
 			}
 		}
 
@@ -361,16 +425,79 @@ namespace SchedulingUI
 				l.Width = lw;
 				l.Height = height;
 
-				TextInput t = inputs [i];
+				IComponent t = components [i];
 				t.Top = i * height + Top;
 				t.Left = lw + 1 + Left;
 				t.Width = InputWidth == 0 ? Width - lw - 1 : InputWidth;
-				t.TextLength = t.Width;
 				t.Height = height;
+
+                if (t is TextInput)
+                {
+                    (t as TextInput).TextLength = t.Width;
+                }
 			}
 		}
 
 		#endregion
+
+	}
+
+	public class TabbedPane : Container
+	{
+		public int SelectedIndex { get; set; }
+
+		#region implemented abstract members of Container
+
+		public override void DoLayout ()
+		{
+			IComponent icomp = Components [SelectedIndex];
+
+			icomp.Top = Top;
+			icomp.Left = Left;
+			icomp.Width = Width;
+			icomp.Height = Height;
+
+			if (icomp is Component) {
+
+				(icomp as Component).Visible = true;
+
+			}
+
+			if (icomp is Container) {
+
+				(icomp as Container).DoLayout ();
+
+			}
+
+		}
+
+		public override void Draw (IConsole buffer)
+		{
+			
+			buffer.Background = Background;
+			buffer.Foreground = Foreground;
+
+			// clear the background of this container
+			for (int x = 0; x < Width; x++) {
+				for (int y = 0; y < Height; y++) {
+					buffer.PutCharacter (x, y, ' ');
+				}
+			}
+
+			IComponent component = Components [SelectedIndex];
+
+			if (component.Visible) {
+				buffer.PushColors ();
+
+				component.Draw (buffer);
+
+				buffer.PopColors ();
+			}
+
+		}
+
+		#endregion
+
 
 	}
 
