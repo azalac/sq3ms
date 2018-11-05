@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using System.Collections.Concurrent;
 
 namespace SchedulingUI
 {
@@ -192,8 +194,8 @@ namespace SchedulingUI
 
         #region implemented abstract members of IContainer
 
-        public override void DoLayout()
-        {
+        protected override void DoLayoutImpl()
+		{
             // calculate the rows and columns
             int columns = Math.Min(CountX, Components.Count);
             int rows = Math.Min(Components.Count / CountX, CountY);
@@ -219,10 +221,6 @@ namespace SchedulingUI
                     component.Width = (int)Math.Round(width * x % 1 + width) - offset;
                     component.Height = (int)Math.Round(height * y % 1 + height) - offset;
 
-                    if (component is Container)
-                    {
-                        (component as Container).DoLayout();
-                    }
                 }
             }
 
@@ -238,7 +236,7 @@ namespace SchedulingUI
 
 		#region implemented abstract members of Container
 
-		public override void DoLayout ()
+		protected override void DoLayoutImpl ()
 		{
 			if (Vertical)
 			{
@@ -278,11 +276,6 @@ namespace SchedulingUI
 
 				current_height += comp.Height;
 
-                if (comp is Container)
-                {
-                    (comp as Container).DoLayout();
-                }
-
             }
         }
 
@@ -314,16 +307,18 @@ namespace SchedulingUI
 
 				current_width += comp.Width;
 
-                if (comp is Container)
-                {
-                    (comp as Container).DoLayout();
-                }
-
             }
         }
 
 		#endregion
     }
+	
+	public enum InterfaceEvent
+	{
+		REDRAW,
+		SET_FOCUS,
+
+	}
 
     public class RootContainer : Container
     {
@@ -331,15 +326,51 @@ namespace SchedulingUI
 
 		public Component FocusedComponent { get; private set; }
 
+		private Thread EventThread;
+
+		private BlockingCollection<Tuple<InterfaceEvent, object, EventArgs>> Events =
+			new BlockingCollection<Tuple<InterfaceEvent, object, EventArgs>>();
+
         public RootContainer(IConsole console)
         {
             ComponentAdded += CheckCount;
             ComponentRemoved += CheckCount;
 
-			this.RequestRedraw += this.Redraw;
+			this.RequestRedraw += CreateHandler<RedrawEventArgs> (InterfaceEvent.REDRAW);
+
+			this.RequestFocus += CreateHandler<ComponentEventArgs> (InterfaceEvent.SET_FOCUS);
+
+			EventThread = new Thread (new ThreadStart (HandleEvents))
+			{
+				IsBackground = true,
+				Name = "RootContainerEvents"
+			};
+
+			EventThread.Start();
 
             Console = console;
         }
+
+		private void HandleEvents()
+		{
+			while (true)
+			{
+				Tuple<InterfaceEvent, object, EventArgs> evt = Events.Take ();
+
+				System.Diagnostics.Debug.Write ("Handling " + evt.Item1);
+
+				switch (evt.Item1) {
+				case InterfaceEvent.REDRAW:
+					Redraw (evt.Item2, evt.Item3 as RedrawEventArgs);
+					break;
+				case InterfaceEvent.SET_FOCUS:
+					SetFocus (evt.Item2, evt.Item3 as ComponentEventArgs);
+					break;
+				default:
+					throw new ArgumentOutOfRangeException ();
+				}
+			}
+		}
 
         private void CheckCount(object sender, ComponentEventArgs e)
         {
@@ -395,7 +426,7 @@ namespace SchedulingUI
 
         #region implemented abstract members of IContainer
 
-        public override void DoLayout()
+        protected override void DoLayoutImpl()
         {
             if (Components.Count > 0)
             {
@@ -411,10 +442,6 @@ namespace SchedulingUI
 					(root as Component).Visible = true;
 				}
 
-                if (root is Container)
-                {
-                    (root as Container).DoLayout();
-                }
             }
 
 			for (int i = 1; i < Components.Count; i++)
@@ -428,6 +455,12 @@ namespace SchedulingUI
 
         #endregion
 
+
+		private EventHandler<T> CreateHandler<T>(InterfaceEvent evt) where T: EventArgs
+		{
+			return (object sender, T e) =>
+				Events.Add (new Tuple<InterfaceEvent, object, EventArgs> (evt, sender, e));
+		}
 
     }
 
