@@ -357,7 +357,7 @@ namespace SchedulingUI
 			{
 				Tuple<InterfaceEvent, object, EventArgs> evt = Events.Take ();
 
-				System.Diagnostics.Debug.Write ("Handling " + evt.Item1);
+				System.Diagnostics.Debug.WriteLine ("Handling " + evt.Item1);
 
 				switch (evt.Item1) {
 				case InterfaceEvent.REDRAW:

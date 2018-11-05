@@ -19,7 +19,7 @@ namespace SchedulingUI
 			Text = "";
 			this.TextLength = TextLength;
 			KeyPress += HandleKeyPress;
-		}
+        }
 
 		private void HandleKeyPress(object sender, ConsoleKeyEventArgs args)
 		{
@@ -61,8 +61,6 @@ namespace SchedulingUI
 
 				needsRedraw = true;
 			}
-
-
 
 			if(needsRedraw)
 			{
@@ -174,7 +172,7 @@ namespace SchedulingUI
 			int i = 0;
 
 			// draw the text
-			for (; i < Text.Length; i++)
+			while (i < Text.Length)
 			{
 				Tuple<int, int> pos = GetCharPos (i);
 
@@ -183,17 +181,15 @@ namespace SchedulingUI
 					break;
 				}
 
-				// swap the colors, but only if this component has focus
-				bool swap_colors = HasFocus && i != SelectIndex;
+                UpdateColors(buffer, i);
+                
+                buffer.PutCharacter (pos.Item1 + Left, pos.Item2 + Top, Text [i]);
 
-				buffer.Foreground = swap_colors ? Background : Foreground;
-				buffer.Background = swap_colors ? Foreground : Background;
-
-				buffer.PutCharacter (pos.Item1 + Left, pos.Item2 + Top, Text [i]);
+                i++;
 			}
-
+            
 			// draw the whitespace after
-			for (; i < TextLength; i++)
+			while (i < TextLength)
 			{
 				Tuple<int, int> pos = GetCharPos (i);
 
@@ -201,16 +197,35 @@ namespace SchedulingUI
 				{
 					break;
 				}
+                
+                UpdateColors(buffer, i);
 
-				bool swap_colors = HasFocus && i != SelectIndex;
+                buffer.PutCharacter (pos.Item1 + Left, pos.Item2 + Top, ' ');
 
-				buffer.Foreground = swap_colors ? Background : Foreground;
-				buffer.Background = swap_colors ? Foreground : Background;
-
-				buffer.PutCharacter (pos.Item1 + Left, pos.Item2 + Top, ' ');
+                i++;
 			}
-
 		}
+
+        private void UpdateColors(IConsole buffer, int current_index)
+        {
+            if(!HasFocus)
+            {
+                buffer.Foreground = Foreground;
+                buffer.Background = Background;
+                return;
+            }
+
+            if (current_index == SelectIndex)
+            {
+                buffer.Foreground = ColorCategory.ERROR_FG;
+                buffer.Background = Background;
+            }
+            else
+            {
+                buffer.Foreground = Background;
+                buffer.Background = Foreground;
+            }
+        }
 	}
 
 	public class Button : Label
@@ -259,11 +274,12 @@ namespace SchedulingUI
 
 			set
 			{
-				OnRequestRedraw (this, new RedrawEventArgs (components [selectedIndex]));
+                int old_selected = selectedIndex;
 				selectedIndex = value;
-                
-				OnRequestRedraw (this, new RedrawEventArgs (components [selectedIndex]));
-				OnRequestFocus (this, new ComponentEventArgs (components [selectedIndex]));
+
+                OnRequestFocus(this, new ComponentEventArgs(components[selectedIndex]));
+                OnRequestRedraw (this, new RedrawEventArgs(components[old_selected]));
+                OnRequestRedraw (this, new RedrawEventArgs (components [selectedIndex]));
 			}
 		}
 
@@ -307,9 +323,10 @@ namespace SchedulingUI
 			Add (labels);
 			Add (components);
 
-			// needed to make focus valid
-			SelectedIndex = 0;
-		}
+            // needed to make focus valid
+            OnRequestFocus(this, new ComponentEventArgs(components[0]));
+            OnRequestRedraw(this, new RedrawEventArgs(components[0]));
+        }
 
 		public IComponent this[string field]
 		{
@@ -415,19 +432,15 @@ namespace SchedulingUI
 
 		protected override void DoLayoutImpl ()
 		{
-			IComponent icomp = Components [SelectedIndex];
+            for (int i = 0; i < Components.Count; i++)
+            {
+                IComponent icomp = Components[i];
 
-			icomp.Top = Top;
-			icomp.Left = Left;
-			icomp.Width = Width;
-			icomp.Height = Height;
-
-			if (icomp is Component) {
-
-				(icomp as Component).Visible = true;
-
-			}
-
+                icomp.Top = Top;
+                icomp.Left = Left;
+                icomp.Width = Width;
+                icomp.Height = Height;
+            }
 		}
 
 		public override void Draw (IConsole buffer)

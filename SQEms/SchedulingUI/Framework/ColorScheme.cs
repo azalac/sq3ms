@@ -38,7 +38,7 @@ namespace SchedulingUI
                 Name = "BlackOnWhite"
             });
             
-			SetCurrent ("BlackOnWhite");
+			SetCurrent ("WhiteOnBlack");
 
         }
 
