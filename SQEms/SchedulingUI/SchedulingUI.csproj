@@ -43,15 +43,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ColorScheme.cs" />
-    <Compile Include="Testing.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Interface.cs" />
-    <Compile Include="SimpleWidgets.cs" />
-    <Compile Include="KeyboardInput.cs" />
-    <Compile Include="AdvancedWidgets.cs" />
-    <Compile Include="Geometry.cs" />
-    <Compile Include="EventQueue.cs" />
+    <Compile Include="Framework\AdvancedWidgets.cs" />
+    <Compile Include="Framework\ColorScheme.cs" />
+    <Compile Include="Framework\EventQueue.cs" />
+    <Compile Include="Framework\Geometry.cs" />
+    <Compile Include="Framework\Interface.cs" />
+    <Compile Include="Framework\KeyboardInput.cs" />
+    <Compile Include="Framework\SimpleWidgets.cs" />
+    <Compile Include="Framework\Testing.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
