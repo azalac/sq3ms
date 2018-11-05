@@ -55,6 +55,18 @@
       <Project>{9D132E48-924E-40D9-88B4-C9732CB447CC}</Project>
       <Name>SchedulingUI</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Billing\Billing.csproj">
+      <Project>{83C26884-B644-4DF1-A54B-A832C846F62D}</Project>
+      <Name>Billing</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Demographics\Demographics.csproj">
+      <Project>{814AF87E-BC77-4A09-8786-4BA4A0A3F855}</Project>
+      <Name>Demographics</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Support\Support.csproj">
+      <Project>{B03DDCB5-98E1-464A-A3DB-4DA8C39555BE}</Project>
+      <Name>Support</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
