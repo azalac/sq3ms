@@ -8,36 +8,8 @@ using System.Threading;
 namespace SchedulingUI
 {
 
-	public class InterfaceEvent
-	{
-		public static readonly InterfaceEvent
-			REDRAW = new InterfaceEvent(),
-			SET_FOCUS = new InterfaceEventThread();
-
-	}
-
-	public class InterfaceEventThread
-	{
-		public static EventQueue<InterfaceEvent> Queue { get; private set; }
-
-		private static Thread QueueThread;
-
-		static InterfaceEventThread()
-		{
-			Queue = new EventQueue<InterfaceEvent> ();
-
-			QueueThread = new Thread (new ThreadStart (Queue));
-
-			QueueThread.Start ();
-		}
-	}
-
 	public class TextInput : Label
 	{
-
-		#region IFocusable implementation
-		public bool HasFocus { get; set; }
-		#endregion
 
 		public int SelectIndex { get; set; }
 		public int TextLength { get; set; }
@@ -47,8 +19,6 @@ namespace SchedulingUI
 			Text = "";
 			this.TextLength = TextLength;
 			KeyPress += HandleKeyPress;
-            Background = ColorCategory.BACKGROUND;
-			Foreground = ColorCategory.FOREGROUND;
 		}
 
 		private void HandleKeyPress(object sender, ConsoleKeyEventArgs args)
@@ -250,8 +220,6 @@ namespace SchedulingUI
         public Button()
         {
 			this.KeyPress += HandleKeyPress;
-			Background = ColorCategory.BACKGROUND;
-			Foreground = ColorCategory.FOREGROUND;
 			Text = "Button";
         }
 
@@ -318,9 +286,6 @@ namespace SchedulingUI
 		public InputArea(params string[] fields)
 		{
 			this.fields = fields;
-
-			Background = ColorCategory.BACKGROUND;
-			Foreground = ColorCategory.FOREGROUND;
 
 			labels = new Label[fields.Length];
 			components = new IComponent[fields.Length];
@@ -409,7 +374,7 @@ namespace SchedulingUI
 
 		#region implemented abstract members of Container
 
-		public override void DoLayout ()
+		protected override void DoLayoutImpl ()
 		{
 			int i = 0;
 
@@ -448,7 +413,7 @@ namespace SchedulingUI
 
 		#region implemented abstract members of Container
 
-		public override void DoLayout ()
+		protected override void DoLayoutImpl ()
 		{
 			IComponent icomp = Components [SelectedIndex];
 
@@ -460,12 +425,6 @@ namespace SchedulingUI
 			if (icomp is Component) {
 
 				(icomp as Component).Visible = true;
-
-			}
-
-			if (icomp is Container) {
-
-				(icomp as Container).DoLayout ();
 
 			}
 

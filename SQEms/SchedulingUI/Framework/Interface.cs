@@ -59,6 +59,10 @@ namespace SchedulingUI
     {
         public Component()
         {
+			Background = ColorCategory.BACKGROUND;
+			Foreground = ColorCategory.FOREGROUND;
+
+			HasFocus = false;
         }
 
         public event EventHandler<ComponentEventArgs> ComponentAdded;
@@ -146,21 +150,19 @@ namespace SchedulingUI
             get { return Components.Count; }
         }
 
+		private bool RedrawBackground { get; set; }
+
+		public Container()
+		{
+			RedrawBackground = true;
+		}
+
         public virtual void Add(IComponent component)
         {
             Components.Add(component);
             Components.Sort(compare);
 
-            component.RequestRedraw += this.OnRequestRedraw;
-
-			if(component is Component){
-				(component as Component).Visible = true;
-				KeyPress += (component as Component).OnKeyPressed;
-				(component as Component).RequestFocus += this.OnRequestFocus;
-
-			}
-
-            OnComponentAdded(this, new ComponentEventArgs(component));
+			SetupHandlers (component);
         }
 
         public virtual void Add(params IComponent[] components)
@@ -171,19 +173,23 @@ namespace SchedulingUI
 
             foreach (IComponent c in components)
             {
-				c.RequestRedraw += this.OnRequestRedraw;
-				
-				if(c is Component){
-					(c as Component).Visible = true;
-					KeyPress += (c as Component).OnKeyPressed;
-					(c as Component).RequestFocus += this.OnRequestFocus;
-
-				}
-
-                OnComponentAdded(this, new ComponentEventArgs(c));
+				SetupHandlers (c);
             }
 
         }
+
+		private void SetupHandlers(IComponent c)
+		{
+			c.RequestRedraw += this.OnRequestRedraw;
+
+			if(c is Component){
+				(c as Component).Visible = true;
+				KeyPress += (c as Component).OnKeyPressed;
+				(c as Component).RequestFocus += this.OnRequestFocus;
+			}
+
+			OnComponentAdded(this, new ComponentEventArgs(c));
+		}
 
         public void Remove(IComponent component)
         {
@@ -198,24 +204,38 @@ namespace SchedulingUI
             OnComponentRemoved(this, new ComponentEventArgs(component));
         }
 
-        public abstract void DoLayout();
+        protected abstract void DoLayoutImpl();
+
+		public void DoLayout()
+		{
+			DoLayoutImpl ();
+			
+			foreach(IComponent c in Components)
+			{
+				if (c is Container)
+				{
+					(c as Container).DoLayout ();
+				}
+			}
+
+		}
 
         #region Component implementation
 
         public override void Draw(IConsole buffer)
         {
+			if (RedrawBackground)
+			{
+				buffer.Background = Background;
+				buffer.Foreground = Foreground;
 
-			buffer.Background = Background;
-			buffer.Foreground = Foreground;
-
-			// clear the background of this container
-            for (int x = 0; x < Width; x++)
-            {
-                for (int y = 0; y < Height; y++)
-                {
-                    buffer.PutCharacter(x, y, ' ');
-                }
-            }
+				// clear the background of this container
+				for (int x = 0; x < Width; x++) {
+					for (int y = 0; y < Height; y++) {
+						buffer.PutCharacter (x, y, ' ');
+					}
+				}
+			}
 
             // draws in order of the component's z-index
             foreach (IComponent component in Components)
