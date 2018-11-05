@@ -14,11 +14,7 @@ namespace SQEms
     {
         static void Main(string[] args)
 		{
-			DatabaseManager db_manager = new DatabaseManager ();
-
-			db_manager.LoadAll ();
-
-			Console.ReadKey ();
+            Testing.TestInterface();
 		}
     }
 }

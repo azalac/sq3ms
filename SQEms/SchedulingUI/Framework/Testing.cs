@@ -25,36 +25,43 @@ namespace SchedulingUI
 				Text = "Submit"
 			};
 
-			Button s2 = new Button ()
-			{
-				Text = "Submit"
-			};
+            Button s2 = new Button()
+            {
+                Text = "Submit"
+            };
 
-			GridContainer flow = new GridContainer ()
+            GridContainer flow = new GridContainer ()
 			{
 				CountY = 2
 			};
 
+            Label label = new Label()
+            {
+                Text = "Hello World"
+            };
+
 			s.Action += (object sender, EventArgs e) => {
-				pane.SelectedIndex = 1;
-				pane.OnRequestRedraw(s, null);
-				//s.OnRequestFocus(s, new ComponentEventArgs(s2));
-				System.Diagnostics.Debug.Write("One");
+				pane.SelectedIndex = 1 - pane.SelectedIndex;
+                label.Text = string.Format("The first input is: {0}", (inputs["one"] as TextInput).Text);
+                s.OnRequestFocus(s, new ComponentEventArgs(s2));
+                pane.OnRequestRedraw(pane, null);
+                System.Diagnostics.Debug.Write("One");
 			};
 
-			s2.Action += (object sender, EventArgs e) => {
-				pane.SelectedIndex = 0;
-				pane.OnRequestRedraw(s2, null);
-				//s2.OnRequestFocus(s2, new ComponentEventArgs(s));
-				System.Diagnostics.Debug.Write("Two");
-			};
+            s2.Action += (object sender, EventArgs e) => {
+                pane.SelectedIndex = 1 - pane.SelectedIndex;
+                s2.OnRequestFocus(s2, new ComponentEventArgs(s));
+                pane.OnRequestRedraw(pane, null);
+                System.Diagnostics.Debug.Write("Two");
+            };
 
-			inputs ["three"] = s;
+            inputs ["three"] = s;
 
-			flow.Add (new Label () { Text = "Hello World"}, s2);
+			flow.Add (label, s2);
 
 			pane.Add (inputs, flow);
-			root.Add (flow);
+
+			root.Add (pane);
 
 			root.DoLayout ();
 			root.Draw ();
