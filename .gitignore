@@ -7,3 +7,8 @@
 *FilesWrittenAbsolute.txt
 *AssemblyAttribute.cs
 *.java
+*.cache
+bin/
+obj/
+\.vs/
+*.ide
