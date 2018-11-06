@@ -17,30 +17,28 @@ namespace SchedulingUI
     public class ColorScheme
     {
         static ColorScheme()
-        {
-            RegisterScheme(new ColorScheme()
-            {
-                Background = Color.Black,
-                Foreground = Color.White,
-                ErrorForeground = Color.Red,
-                WarningForeground = Color.Yellow,
-                HighlightBackground = Color.Gray,
-                Name = "WhiteOnBlack"
-            });
+		{
+			RegisterScheme (new ColorScheme () {
+				Background = Color.Black,
+				Foreground = Color.White,
+				ErrorForeground = Color.Red,
+				WarningForeground = Color.Yellow,
+				HighlightBackground = Color.DarkCyan,
+				Name = "WhiteOnBlack"
+			});
 
-            RegisterScheme(new ColorScheme()
-            {
-                Background = Color.White,
-                Foreground = Color.Black,
-                ErrorForeground = Color.Red,
-                WarningForeground = Color.Yellow,
-                HighlightBackground = Color.Gray,
-                Name = "BlackOnWhite"
-            });
+			RegisterScheme (new ColorScheme () {
+				Background = Color.White,
+				Foreground = Color.Black,
+				ErrorForeground = Color.Red,
+				WarningForeground = Color.Yellow,
+				HighlightBackground = Color.DarkCyan,
+				Name = "BlackOnWhite"
+			});
             
 			SetCurrent ("WhiteOnBlack");
 
-        }
+		}
 
 		public static Color CurrentBackground { get{ return Current.Background; } }
 		public static Color CurrentForeground { get{ return Current.Foreground; } }
