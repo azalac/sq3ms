@@ -217,8 +217,8 @@ namespace SchedulingUI
 
             if (current_index == SelectIndex)
             {
-                buffer.Foreground = ColorCategory.ERROR_FG;
-                buffer.Background = Background;
+                buffer.Foreground = Foreground;
+                buffer.Background = ColorCategory.HIGHLIGHT_BG;
             }
             else
             {
@@ -230,7 +230,25 @@ namespace SchedulingUI
 
 	public class Button : Label
     {
-		public event EventHandler Action;
+        /// <summary>
+        /// The milliseconds since a button was last activated. Used to
+        /// de-bounce buttons, in order to prevent multiple from being pressed
+        /// in order when the user didn't want to.
+        /// </summary>
+        private static double LAST_ACTIVATION = 0;
+
+        /// <summary>
+        /// The milliseconds between activations.
+        /// </summary>
+        private static long ACTIVATION_DELAY = 20;
+
+        /// <summary>
+        /// This probably doesn't need its own static variable, but it helps
+        /// with code description.
+        /// </summary>
+        private static DateTime UNIX_EPOCH = new DateTime(1970, 1, 1);
+        
+        public event EventHandler<ComponentEventArgs> Action;
 
         public Button()
         {
@@ -240,8 +258,15 @@ namespace SchedulingUI
 
         private void HandleKeyPress(object sender, ConsoleKeyEventArgs args)
 		{
-			if (HasFocus && args.Key.Key == ConsoleKey.Enter) {
-				Action (this, null);
+			if (HasFocus && args.Key.Key == ConsoleKey.Enter)
+            {
+                double current_millis = (DateTime.UtcNow - UNIX_EPOCH).TotalMilliseconds;
+
+                if (current_millis - LAST_ACTIVATION > ACTIVATION_DELAY)
+                {
+                    Action(sender, new ComponentEventArgs(this));
+                    LAST_ACTIVATION = current_millis;
+                }
 			}
 		}
 
