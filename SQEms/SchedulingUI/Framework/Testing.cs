@@ -56,16 +56,16 @@ namespace SchedulingUI
 
 			root.Add (pane);
 
-			s.Action += (object sender, EventArgs e) => {
+			s.Action += (object sender, ComponentEventArgs e) => {
                 label.Text = string.Format("The first input is: {0}", (inputs["one"] as TextInput).Text);
 				label2.Text = string.Format("The second input is: {0}", (inputs["two"] as TextInput).Text);
 				s.OnRequestFocus(s, new ComponentEventArgs(s2));
-				pane.SetSelectedIndex(1 - pane.SelectedIndex);
+				pane.SetSelectedIndex(1);
 			};
 
-            s2.Action += (object sender, EventArgs e) => {
+            s2.Action += (object sender, ComponentEventArgs e) => {
                 s2.OnRequestFocus(s2, new ComponentEventArgs(s));
-				pane.SetSelectedIndex(1 - pane.SelectedIndex);
+				pane.SetSelectedIndex(0);
             };
 
             inputs [" "] = s;
