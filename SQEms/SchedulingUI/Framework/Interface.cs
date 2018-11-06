@@ -229,12 +229,14 @@ namespace SchedulingUI
 				buffer.Background = Background;
 				buffer.Foreground = Foreground;
 
-				// clear the background of this container
-				for (int x = 0; x < Width; x++) {
-					for (int y = 0; y < Height; y++) {
-						buffer.PutCharacter (x, y, ' ');
-					}
-				}
+                string filler = new string(' ', Width);
+
+                // clear the background of this container
+                for (int y = Top; y < Top + Height; y++)
+                {
+                    buffer.PutString(Left, y, filler);
+                }
+				
 			}
 
             // draws in order of the component's z-index
