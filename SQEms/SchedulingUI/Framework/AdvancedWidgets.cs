@@ -325,7 +325,7 @@ namespace SchedulingUI
 
             // needed to make focus valid
             OnRequestFocus(this, new ComponentEventArgs(components[0]));
-            OnRequestRedraw(this, new RedrawEventArgs(components[0]));
+            OnRequestRedraw(this, new RedrawEventArgs(this));
         }
 
 		public IComponent this[string field]
@@ -350,12 +350,22 @@ namespace SchedulingUI
 					Remove (components [i]);
 					components [i] = value;
 					Add (components [i]);
+
+					if (i == SelectedIndex)
+					{
+						SelectedIndex = SelectedIndex;
+					}
 				}
 			}
 		}
 
 		private void HandleKeyPress(object sender, ConsoleKeyEventArgs args)
 		{
+			if (!Visible)
+			{
+				return;
+			}
+
 			if (args.Key.Key == ConsoleKey.UpArrow)
 			{
 				SelectedIndex = Mod(SelectedIndex - 1, fields.Length);
@@ -426,7 +436,14 @@ namespace SchedulingUI
 
 	public class TabbedPane : Container
 	{
-		public int SelectedIndex { get; set; }
+		public int SelectedIndex { get; private set; }
+
+		public void SetSelectedIndex(int index)
+		{
+			SelectedIndex = index;
+			DoLayout();
+			OnRequestRedraw(this, new RedrawEventArgs(this));
+		}
 
 		#region implemented abstract members of Container
 
@@ -440,32 +457,13 @@ namespace SchedulingUI
                 icomp.Left = Left;
                 icomp.Width = Width;
                 icomp.Height = Height;
-            }
-		}
 
-		public override void Draw (IConsole buffer)
-		{
-			
-			buffer.Background = Background;
-			buffer.Foreground = Foreground;
-
-			// clear the background of this container
-			for (int x = 0; x < Width; x++) {
-				for (int y = 0; y < Height; y++) {
-					buffer.PutCharacter (x, y, ' ');
+				if (icomp is Component)
+				{
+					(icomp as Component).Visible = i == SelectedIndex;
 				}
-			}
 
-			IComponent component = Components [SelectedIndex];
-
-			if (component.Visible) {
-				buffer.PushColors ();
-
-				component.Draw (buffer);
-
-				buffer.PopColors ();
-			}
-
+            }
 		}
 
 		#endregion
