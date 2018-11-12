@@ -36,6 +36,13 @@
     <Compile Include="MyClass.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="DatabaseManager.cs" />
+    <Compile Include="AppointmentScheduler.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <ProjectReference Include="..\Demographics\Demographics.csproj">
+      <Project>{814AF87E-BC77-4A09-8786-4BA4A0A3F855}</Project>
+      <Name>Demographics</Name>
+    </ProjectReference>
+  </ItemGroup>
 </Project>

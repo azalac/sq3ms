@@ -35,6 +35,7 @@
     <Compile Include="MyClass.cs" />
     <Compile Include="PersonInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Person.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
