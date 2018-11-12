@@ -36,11 +36,16 @@
     <Compile Include="BillingMasterEntry.cs" />
     <Compile Include="MyClass.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Billing.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Demographics\Demographics.csproj">
       <Project>{814AF87E-BC77-4A09-8786-4BA4A0A3F855}</Project>
       <Name>Demographics</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Support\Support.csproj">
+      <Project>{B03DDCB5-98E1-464A-A3DB-4DA8C39555BE}</Project>
+      <Name>Support</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
