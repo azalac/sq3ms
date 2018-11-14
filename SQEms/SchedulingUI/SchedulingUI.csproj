@@ -53,7 +53,6 @@
     <Compile Include="Framework\SimpleWidgets.cs" />
     <Compile Include="Framework\Testing.cs" />
     <Compile Include="Controller.cs" />
-    <Compile Include="Framework\TextWidgets.cs" />
     <Compile Include="SchedulingController.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
