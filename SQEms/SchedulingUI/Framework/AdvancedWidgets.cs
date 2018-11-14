@@ -14,7 +14,7 @@ namespace SchedulingUI
 		public int SelectIndex { get; set; }
 		public int TextLength { get; set; }
 
-		public TextInput(int TextLength = 20)
+		public TextInput(int TextLength = 10)
 		{
 			Text = "";
 			this.TextLength = TextLength;
@@ -99,112 +99,27 @@ namespace SchedulingUI
 		}
 
 		/// <summary>
-		/// This doesn't work
-		/// </summary>
-		public void OptimizedDraw(IConsole buffer)
-		{
-			// if there's no width, do nothing
-			if (Width <= 0 || Height <= 0) {
-				return;
-			}
-
-			Tuple<int, int> pos = GetCharPos (0);
-
-			if (pos == null || pos.Item2 > Height)
-			{
-				return;
-			}
-
-			buffer.Foreground = HasFocus ? Background : Foreground;
-			buffer.Background = HasFocus ? Foreground : Background;
-
-			//put the string pre-selection
-			buffer.PutString (pos.Item1 + Left, pos.Item2 + Top, Text, SelectIndex);
-			
-			if(SelectIndex < Text.Length)
-			{
-				pos = GetCharPos (SelectIndex);
-			
-				if (pos == null || pos.Item2 > Height)
-				{
-					return;
-				}
-
-				buffer.Foreground = !HasFocus ? Background : Foreground;
-				buffer.Background = !HasFocus ? Foreground : Background;
-
-				//put the selection
-				buffer.PutCharacter (pos.Item1 + Left, pos.Item2 + Top, Text [SelectIndex]);
-			}
-			
-			pos = GetCharPos (SelectIndex + 1);
-
-			if (pos == null || pos.Item2 > Height) {
-				return;
-			}
-
-			buffer.Foreground = HasFocus ? Background : Foreground;
-			buffer.Background = HasFocus ? Foreground : Background;
-
-			if (SelectIndex + 1 < Text.Length)
-			{
-				//put the string post-selection
-				buffer.PutString (pos.Item1 + Left, pos.Item2 + Top, Text.Substring (SelectIndex + 1),
-				                  Text.Length - SelectIndex - 1);
-			}
-
-			buffer.PutString (pos.Item1 + Left + SelectIndex, pos.Item2 + Top,
-			                  new string (' ', Text.Length - SelectIndex));
-
-			
-		}
-
-		/// <summary>
-		/// Draws the text input (works, but has glitching)
+		/// Draws this text input
 		/// </summary>
 		public override void Draw(IConsole buffer)
 		{
-			// if there's no width, do nothing
-			if (Width <= 0 || Height <= 0) {
-				return;
-			}
+            string drawtext = Text + new string(' ', TextLength - Text.Length);
 
-			int i = 0;
+            string pre = SelectIndex > 0 ? drawtext.Substring(0, SelectIndex) : "";
+            char sel = drawtext[SelectIndex];
+            string post = SelectIndex < drawtext.Length - 1 ? drawtext.Substring(SelectIndex + 1) : "";
 
-			// draw the text
-			while (i < Text.Length)
-			{
-				Tuple<int, int> pos = GetCharPos (i);
+            UpdateColors(buffer, 0);
+            buffer.PutString(Left, Top, pre);
 
-				if (pos == null || pos.Item2 > Height)
-				{
-					break;
-				}
+            UpdateColors(buffer, SelectIndex);
+            buffer.PutCharacter(Left + SelectIndex, Top, sel);
 
-                UpdateColors(buffer, i);
-                
-                buffer.PutCharacter (pos.Item1 + Left, pos.Item2 + Top, Text [i]);
-
-                i++;
-			}
-            
-			// draw the whitespace after
-			while (i < TextLength)
-			{
-				Tuple<int, int> pos = GetCharPos (i);
-
-				if (pos == null || pos.Item2 > Height)
-				{
-					break;
-				}
-                
-                UpdateColors(buffer, i);
-
-                buffer.PutCharacter (pos.Item1 + Left, pos.Item2 + Top, ' ');
-
-                i++;
-			}
+            UpdateColors(buffer, SelectIndex + 1);
+            buffer.PutString(Left + SelectIndex + 1, Top, post);
 		}
+
+		
 
         private void UpdateColors(IConsole buffer, int current_index)
         {
@@ -254,6 +169,7 @@ namespace SchedulingUI
         {
 			this.KeyPress += HandleKeyPress;
 			Text = "Button";
+
         }
 
         private void HandleKeyPress(object sender, ConsoleKeyEventArgs args)
@@ -264,20 +180,26 @@ namespace SchedulingUI
 
                 if (current_millis - LAST_ACTIVATION > ACTIVATION_DELAY)
                 {
-                    Action(sender, new ComponentEventArgs(this));
+					if (Action != null)
+					{
+						Action (sender, new ComponentEventArgs (this));
+					}
+					else
+					{
+						System.Diagnostics.Debug.WriteLine ("Warning: button with text '{0}' has no action", Text);
+					}
+
                     LAST_ACTIVATION = current_millis;
                 }
 			}
 		}
 
-		public override void Draw (IConsole buffer)
+		public override void UpdateColors (IConsole buffer)
 		{
-			
 			buffer.Foreground = HasFocus ? Background : Foreground;
 			buffer.Background = HasFocus ? Foreground : Background;
-
-			base.Draw (buffer);
 		}
+
 	}
 
     public class InputArea : Container
@@ -289,7 +211,7 @@ namespace SchedulingUI
 		private readonly IComponent[] components;
 
 		private int selectedIndex = 0;
-
+        
 		public int SelectedIndex
 		{
 			get
@@ -323,7 +245,7 @@ namespace SchedulingUI
 		/// The height of each row.
 		/// </summary>
 		public int RowHeight { get; set; }
-
+        
 		public InputArea(params string[] fields)
 		{
 			this.fields = fields;
@@ -337,7 +259,7 @@ namespace SchedulingUI
 					Text = fields[i],
 					ZIndex = 2 * i
 				};
-
+                
 				components [i] = new TextInput () {
 					ZIndex = 2 * i + 1
 				};
@@ -348,9 +270,6 @@ namespace SchedulingUI
 			Add (labels);
 			Add (components);
 
-            // needed to make focus valid
-            OnRequestFocus(this, new ComponentEventArgs(components[0]));
-            OnRequestRedraw(this, new RedrawEventArgs(this));
         }
 
 		public IComponent this[string field]
@@ -428,20 +347,18 @@ namespace SchedulingUI
 
 		protected override void DoLayoutImpl ()
 		{
-			int i = 0;
-
 			int lw = CalculateLabelWidth ();
 
-			int height = Math.Max (1, RowHeight);
+			int height = RowHeight < 1 ? 1 : RowHeight;
 
-			for (; i < fields.Length; i++)
+			for (int i = 0; i < fields.Length; i++)
 			{
 				Label l = labels [i];
 				l.Top = i * height + Top;
 				l.Left = Left;
 				l.Width = lw;
 				l.Height = height;
-
+				
 				IComponent t = components [i];
 				t.Top = i * height + Top;
 				t.Left = lw + 1 + Left;
@@ -459,7 +376,91 @@ namespace SchedulingUI
 
 	}
 
-	public class TabbedPane : Container
+    /// <summary>
+    /// Controls multiple input controls, allowing the user to select between them.
+    /// </summary>
+    /// <remarks>
+    /// This is not a component. It controls the components, but has no visual aspect.
+    /// Components that should be controlled by it need to be added to its internal list.
+    /// </remarks>
+    public class InputController
+    {
+        public Component Parent {
+            get
+            {
+                return parent;
+            }
+            set
+            {
+                if(parent != null)
+                {
+                    parent.KeyPress -= HandleKeypress;
+                }
+
+                parent = value;
+                parent.KeyPress += HandleKeypress;
+            }
+        }
+
+        public readonly List<IComponent> Components = new List<IComponent>();
+
+        private Component parent;
+
+        private int selectedIndex = -1;
+        
+        private void HandleKeypress(object sender, ConsoleKeyEventArgs args)
+        {
+            if (!Parent.Visible)
+            {
+                return;
+            }
+
+            if (args.Key.Key == ConsoleKey.UpArrow)
+            {
+                SetSelectedIndex(Mod(selectedIndex - 1, Components.Count));
+            }
+            else if (args.Key.Key == ConsoleKey.DownArrow)
+            {
+                SetSelectedIndex(Mod(selectedIndex + 1, Components.Count));
+            }
+        }
+        
+        public void SetSelectedIndex(int newSelection)
+        {
+            // do nothing if there are no components
+            if(Components.Count == 0)
+            {
+                selectedIndex = -1;
+                return;
+            }
+
+            // do nothing if the indices are the same
+            if(selectedIndex == newSelection)
+            {
+                return;
+            }
+
+            int oldSelection = selectedIndex;
+            selectedIndex = newSelection;
+
+            parent.OnRequestFocus(this, new ComponentEventArgs(Components[newSelection]));
+            parent.OnRequestRedraw(this, new RedrawEventArgs(Components[newSelection]));
+
+            if(oldSelection != -1)
+            {
+                parent.OnRequestRedraw(this, new RedrawEventArgs(Components[oldSelection]));
+            }
+
+        }
+
+        private static int Mod(int a, int n)
+        {
+            return (a % n + n) % n;
+        }
+
+    }
+
+    public class TabbedPane : Container
 	{
 		public int SelectedIndex { get; private set; }
 
