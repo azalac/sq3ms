@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Billing", "Billing\Billing.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Support", "Support\Support.csproj", "{B03DDCB5-98E1-464A-A3DB-4DA8C39555BE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Definitions", "Definitions\Definitions.csproj", "{961CF898-6528-4D07-B2A2-1F8C337627CC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,6 +31,10 @@ Global
 		{90F660E6-5DB0-4906-80C8-51A9A5833364}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{90F660E6-5DB0-4906-80C8-51A9A5833364}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{90F660E6-5DB0-4906-80C8-51A9A5833364}.Release|Any CPU.Build.0 = Release|Any CPU
+		{961CF898-6528-4D07-B2A2-1F8C337627CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{961CF898-6528-4D07-B2A2-1F8C337627CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{961CF898-6528-4D07-B2A2-1F8C337627CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{961CF898-6528-4D07-B2A2-1F8C337627CC}.Release|Any CPU.Build.0 = Release|Any CPU
 		{9D132E48-924E-40D9-88B4-C9732CB447CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{9D132E48-924E-40D9-88B4-C9732CB447CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9D132E48-924E-40D9-88B4-C9732CB447CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
