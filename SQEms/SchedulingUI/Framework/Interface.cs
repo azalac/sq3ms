@@ -118,6 +118,12 @@ namespace SchedulingUI
 			}
 		}
 
+		public virtual void UpdateColors(IConsole buffer)
+		{
+			buffer.Foreground = Foreground;
+			buffer.Background = Background;
+		}
+
         public int ZIndex { get; set; }
 
         public int Left { get; set; }
@@ -160,7 +166,6 @@ namespace SchedulingUI
         public virtual void Add(IComponent component)
         {
             Components.Add(component);
-            Components.Sort(compare);
 
 			SetupHandlers (component);
         }
@@ -169,7 +174,6 @@ namespace SchedulingUI
         {
 
             Components.AddRange(components);
-            Components.Sort(compare);
 
             foreach (IComponent c in components)
             {
@@ -230,11 +234,22 @@ namespace SchedulingUI
 				buffer.Foreground = Foreground;
 
                 string filler = new string(' ', Width);
-
+                
                 // clear the background of this container
                 for (int y = Top; y < Top + Height; y++)
                 {
-                    buffer.PutString(Left, y, filler);
+                    // TODO fix this
+                    if (true)
+                    {
+                        for (int x = Left; x < Left + Width; x++)
+                        {
+                            buffer.PutCharacter(x, y, ' ');
+                        }
+                    }
+                    else
+                    {
+                        buffer.PutString(Left, y, filler);
+                    }
                 }
 				
 			}
@@ -245,6 +260,11 @@ namespace SchedulingUI
 				if (component.Visible)
 				{
                     buffer.PushColors();
+
+					if(component is Component)
+					{
+						(component as Component).UpdateColors (buffer);
+					}
 
 					component.Draw (buffer);
 
