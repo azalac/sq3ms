@@ -1,6 +1,8 @@
 using System;
 using System.Threading;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace SchedulingUI
 {
@@ -87,6 +89,27 @@ namespace SchedulingUI
 
     }
 
+	public class Line : Component
+	{
+		/// <summary>
+		/// The side to render this line on.
+		/// The codes are in LineDrawer (Left, Right, Top, Bottom).
+		/// </summary>
+		/// <value>The side.</value>
+		public uint Side { get; set; }
+
+		private LineDrawer lines = LineDrawer.FromGlobal();
+
+		#region implemented abstract members of Component
+		public override void Draw (IConsole buffer)
+		{
+			lines.Set (0, new Rectangle (Left, Top, Width, Height), Side);
+
+			lines.Draw (buffer);
+		}
+		#endregion
+	}
+
 	public class Label : Component
 	{
 		public string Text { get; set; }
@@ -101,6 +124,7 @@ namespace SchedulingUI
 
         /// <summary>
         /// Gets the relative position for a character's position.
+		/// Does not account for the contents of the text.
         /// </summary>
         /// <param name="i">The character's index</param>
         /// <returns>The relative position</returns>
@@ -127,18 +151,128 @@ namespace SchedulingUI
 
 			return new Tuple<int, int> (x, y);
 		}
+			
+		/// <summary>
+		/// Gets the relative position for every character.
+		/// Accounts for the contents of the text.
+		/// </summary>
+		/// <param name="i">The character's index</param>
+		/// <returns>The relative positions for each text (index, x, y)</returns>
+		public IEnumerable<Tuple<int, int, int>> GetRealCharPositions()
+		{
+            
+			int x = Center ? GetXOffset(0, Width) : 0;
+			int y = 0;
+
+            int i = 0;
+
+			while(i < Text.Length)
+			{
+				// if there's no more room for the (non-wrapped) text
+				// or if the index is invalid, stop iterating
+				if (i >= Width && !DoWrapping)
+				{
+					yield break;
+				}
+
+				char c = Text [i];
+
+				Tuple<int, int, int> ret = new Tuple<int, int, int> (i, x, y);
+
+                i++;
+
+                // on newlines, go to the next line and don't send the character
+                if(c == '\n')
+                {
+                    x = Center ? GetXOffset(i, Width) : 0;
+                    y++;
+                    continue;
+                }
+                //"FormatName:Direct=TCP:ip\private$\name"
+
+				// on normal characters, go to the next position
+				x++;
+				
+				// if the cursor should go to the next line, update x and increment y
+				if (x >= Width)
+				{
+					x = Center ? GetXOffset(i, Width) : 0;
+					y++;
+				}
+                
+				yield return ret;
+
+			}
+
+			yield break;
+		}
+
+        public IEnumerable<Tuple<int, int, string>> GetChunks()
+        {
+            LinkedList<string> lines = new LinkedList<string>(Text.Split('\n'));
+
+            LinkedListNode<string> curr = lines.First;
+
+            while(curr != null)
+            {
+                while(curr.Value.Length > Width)
+                {
+                    lines.AddBefore(curr, curr.Value.Substring(0, Width));
+
+                    curr.Value = curr.Value.Substring(Width);
+                }
+
+                curr = curr.Next;
+            }
+
+            int y = 0;
+
+            curr = lines.First;
+
+            while(curr != null)
+            {
+                int x = (Width - curr.Value.Length) / 2;
+                yield return new Tuple<int, int, string>(x, y, curr.Value);
+                y++;
+                curr = curr.Next;
+            }
+
+            yield break;
+        }
+
+        private int GetXOffset(int i, int max_length)
+        {
+            for(int idelta = 0; idelta < max_length; idelta++)
+            {
+                // at a newline, or the end, return the offset
+                if(i + idelta >= Text.Length - 1 || Text[i + idelta] == '\n')
+                {
+                    return (max_length - idelta) / 2;
+                }
+            }
+
+            return 0;
+        }
 
         /// <summary>
         /// Gets the rectangle which covers all text in this label.
+		/// The returned rectangle may have no area, if there is no text in this label.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>The rectangle.</returns>
 		public Rectangle GetTextArea()
 		{
-			Tuple<int, int> TopLeft = GetCharPos (0);
-			Tuple<int, int> BottomRight = GetCharPos (Text.Length);
+			IEnumerable<Tuple<int, int, int>> positions = GetRealCharPositions ();
+			
+			if (positions.Count() == 0)
+			{
+				return new Rectangle (Left, Top, 0, 0);
+			}
 
-			return Rectangle.BetweenCoords (TopLeft.Item1 + Left, TopLeft.Item2 + Top,
-			                               BottomRight.Item1 + Left, BottomRight.Item2 + Top);
+			Tuple<int, int, int> TopLeft = positions.First();
+			Tuple<int, int, int> BottomRight = positions.Last();
+
+			return Rectangle.BetweenCoords (TopLeft.Item2 + Left, TopLeft.Item3 + Top,
+			                               BottomRight.Item2 + Left, BottomRight.Item3 + Top);
 		}
 
 		#region implemented abstract members of Component
@@ -150,16 +284,9 @@ namespace SchedulingUI
 				return;
 			}
 
-			for (int i = 0; i < Text.Length; i++)
+			foreach (Tuple<int, int, string> chunk in GetChunks())
 			{
-				Tuple<int, int> pos = GetCharPos (i);
-
-				if (pos == null || pos.Item2 > Height)
-				{
-					break;
-				}
-
-				buffer.PutCharacter (pos.Item1 + Left, pos.Item2 + Top, Text [i]);
+                buffer.PutString(Left + chunk.Item1, Top + chunk.Item2, chunk.Item3);
 			}
 		}
 
@@ -170,9 +297,8 @@ namespace SchedulingUI
 
     public class GridContainer : Container
     {
-        /// <summary>
-        /// If this grid container draws and accounts for the borders between cells.
-        /// TODO: implement the drawing
+		/// <summary>
+		/// If this container draws and accounts for the borders between cells.
         /// </summary>
         public bool DrawBorders { get; set; }
 
@@ -186,53 +312,107 @@ namespace SchedulingUI
         /// </summary>
         public int CountY { get; set; }
 
+		/// <summary>
+		/// The border side flags. Determines the sides to draw.
+		/// </summary>
+		public uint OuterBorders { get; set; }
+        
+		private LineDrawer lines = LineDrawer.FromGlobal();
+
         public GridContainer()
         {
             CountX = 1;
             CountY = 1;
+			OuterBorders = LineDrawer.ALL;
         }
 
-        #region implemented abstract members of IContainer
+        #region implemented abstract members of Container
 
         protected override void DoLayoutImpl()
-		{
-            // calculate the rows and columns
-            int columns = Math.Min(CountX, Components.Count);
-            int rows = Math.Min(Components.Count / CountX, CountY);
+        {
+            double width_per = ((double)Width) / CountX;
+            double height_per = ((double)Height) / CountY;
 
-            // find the available space for the cells
-            double available_width = Width - (DrawBorders ? columns + 1 : 0);
-            double available_height = Height - (DrawBorders ? rows + 1 : 0);
-
-            int offset = DrawBorders ? 1 : 0;
-
-            double width = available_width / columns + offset;
-            double height = available_height / rows + offset;
-
-            for (int x = 0; x < columns; x++)
+            for (int xi = 0; xi < CountX; xi++)
             {
-                for (int y = 0; y < rows; y++)
+                for (int yi = 0; yi < CountY; yi++)
                 {
-                    IComponent component = Components[y * columns + x];
+                    int i = yi * CountX + xi;
 
-                    component.Top = Top + (int)Math.Round(height * y) + offset;
-                    component.Left = Left + (int)Math.Round(width * x) + offset;
+                    int x = (int)(width_per * xi) + 1,
+                        y = (int)(height_per * yi) + 1,
+                        w = (int)(width_per),
+                        h = (int)(height_per);
 
-                    component.Width = (int)Math.Round(width * x % 1 + width) - offset;
-                    component.Height = (int)Math.Round(height * y % 1 + height) - offset;
+                    if (i < Components.Count) {
+                        IComponent component = Components[i];
 
+                        component.Left = Left + x;
+                        component.Top = Top + y;
+
+                        component.Width = w;
+                        component.Height = h;
+                    }
                 }
             }
 
+            if (DrawBorders)
+            {
+                double dist = 0;
+
+                int x_lower = ((OuterBorders & LineDrawer.LEFT) != 0) ? 1 : 0;
+                int x_upper = (((OuterBorders & LineDrawer.RIGHT) != 0) ? 1 : 0) + CountX;
+
+                int y_lower = ((OuterBorders & LineDrawer.TOP) != 0) ? 1 : 0;
+                int y_upper = (((OuterBorders & LineDrawer.BOTTOM) != 0) ? 1 : 0) + CountY;
+
+                for (int xi = x_lower; xi < x_upper; xi++)
+                {
+                    int x = (int)dist;
+
+                    lines.Set(2 * xi, new Rectangle(Left + x, Top, 0, Height), LineDrawer.LEFT);
+
+                    dist += width_per;
+                }
+
+                dist = 0;
+
+                for (int yi = y_lower; yi < y_upper; yi++)
+                {
+                    int y = (int)dist;
+
+                    lines.Set(2 * yi + 1, new Rectangle(Left, Top + y, Width, 0), LineDrawer.TOP);
+
+                    dist += height_per;
+                }
+            }
         }
 
-        #endregion
+		public override void Draw (IConsole buffer)
+		{
+			base.Draw (buffer);
 
+			if (DrawBorders)
+			{
+				lines.Revalidate (buffer);
+				lines.Draw (buffer);
+			}
+		}
+
+        #endregion
+        
     }
 
     public class FlowContainer : Container
-    {
+	{
+		/// <summary>
+		/// If this container draws and accounts for the borders between cells.
+		/// </summary>
+		public bool DrawBorders { get; set; }
+
         public bool Vertical { get; set; }
+		
+		private LineDrawer lines = LineDrawer.FromGlobal();
 
 		#region implemented abstract members of Container
 
@@ -259,22 +439,44 @@ namespace SchedulingUI
 				sum += heights [i];
 
 				System.Diagnostics.Debug.WriteLineIf (Components [i].PreferredHeight == 0,
-				                                     "Warning, Component " + i + " has no height");
+				                                      "Warning, Component " + i + " has no preferred height");
 			}
 
 			int current_height = 0;
 
 			for (int i = 0; i < Components.Count; i++)
 			{
+				int x = Left;
+				int y = Top + current_height;
+				int w = Width;
+				int h = (int)(Height * heights [i] / sum);
+				
+				current_height += h;
+
+				if (DrawBorders)
+				{
+					uint code = LineDrawer.LEFT | LineDrawer.TOP | LineDrawer.RIGHT;
+
+					if (i == Components.Count - 1)
+					{
+						code |= LineDrawer.BOTTOM;
+					}
+
+					lines.Set (i, new Rectangle (x, y, w - 1, h - 1), code);
+					
+					x++;
+					y++;
+					w -= 2;
+					h -= 2;
+				}
+
 				IComponent comp = Components [i];
 
-                comp.Top = current_height;
-				comp.Left = 0;
+				comp.Left = x;
+				comp.Top = y;
 
-				comp.Width = Width;
-				comp.Height = (int)(Height * heights [i] / sum);
-
-				current_height += comp.Height;
+				comp.Width = w;
+				comp.Height = h;
 
             }
         }
@@ -290,34 +492,121 @@ namespace SchedulingUI
 				sum += widths [i];
 				
 				System.Diagnostics.Debug.WriteLineIf (Components [i].PreferredWidth == 0,
-				                                      "Warning, Component " + i + " has no width");
+				                                      "Warning, Component " + i + " has no preferred width");
 			}
 
 			int current_width = 0;
 
 			for (int i = 0; i < Components.Count; i++)
 			{
+				
+				int x = Left + current_width;
+				int y = Top;
+				int w = (int)(Width * widths [i] / sum);
+				int h = Height;
+
+				current_width += w;
+
+				if (DrawBorders)
+				{
+					uint code = LineDrawer.LEFT | LineDrawer.TOP | LineDrawer.BOTTOM;
+
+					if (i == Components.Count - 1)
+					{
+						code |= LineDrawer.RIGHT;
+					}
+
+					lines.Set (i, new Rectangle (x, y, w - 1, h - 1), code);
+
+					x++;
+					y++;
+					w -= 2;
+					h -= 2;
+				}
+
 				IComponent comp = Components [i];
 
-				comp.Top = 0;
-				comp.Left = current_width;
+				comp.Top = y;
+				comp.Left = x;
 
-				comp.Width = (int)(Width * widths [i] / sum);
-				comp.Height = Height;
-
-				current_width += comp.Width;
+				comp.Width = w + 1;
+				comp.Height = h;
 
             }
         }
+		
+		public override void Draw (IConsole buffer)
+		{
+			base.Draw (buffer);
+
+			if (DrawBorders)
+			{
+				lines.Revalidate (buffer);
+				lines.Draw (buffer);
+			}
+		}
 
 		#endregion
     }
-	
-	public enum InterfaceEvent
+
+    public class BinaryContainer : Container
+    {
+        public bool Vertical { get; set; }
+
+        public IComponent First { get; set; }
+
+        public IComponent Second { get; set; }
+
+        protected override void DoLayoutImpl()
+        {
+            // this container must contain both components
+            if(!Components.Contains(First) || !Components.Contains(Second))
+            {
+                System.Diagnostics.Debug.WriteLine("Warning: BinaryContainer's first & second aren't in the container");
+                return;
+            }
+            
+            if(Vertical)
+            {
+                LayoutVertical(First, Second);
+            }
+            else
+            {
+                LayoutHorizontal(First, Second);
+            }
+        }
+
+        private void LayoutVertical(IComponent first, IComponent second)
+        {
+            first.Left = Left;
+            first.Top = Top;
+            first.Width = Width;
+            first.Height = Math.Min(Height, first.PreferredHeight);
+
+            second.Left = Left;
+            second.Top = Top + first.Height;
+            second.Width = Width;
+            second.Height = Height - first.Height;
+        }
+
+        private void LayoutHorizontal(IComponent first, IComponent second)
+        {
+            first.Left = Left;
+            first.Top = Top;
+            first.Width = Math.Min(Width, first.PreferredWidth);
+            first.Height = Height;
+
+            second.Left = Left + first.Width;
+            second.Top = Top;
+            second.Width = Width - first.Width;
+            second.Height = Height;
+        }
+    }
+
+    public enum InterfaceEvent
 	{
 		REDRAW,
 		SET_FOCUS,
-
 	}
 
     public class RootContainer : Container
@@ -407,6 +696,8 @@ namespace SchedulingUI
 			{
 				Draw();
 			}
+
+            this.Console.SetCursorPosition(0, 0);
 		}
 
         public void Draw()
@@ -455,8 +746,14 @@ namespace SchedulingUI
 
         #endregion
 
+        public override void Draw(IConsole buffer)
+        {
+            base.Draw(buffer);
 
-		private EventHandler<T> CreateHandler<T>(InterfaceEvent evt) where T: EventArgs
+            LineDrawer.GlobalDraw(buffer);
+        }
+
+        private EventHandler<T> CreateHandler<T>(InterfaceEvent evt) where T: EventArgs
 		{
 			return (object sender, T e) =>
 				Events.Add (new Tuple<InterfaceEvent, object, EventArgs> (evt, sender, e));
