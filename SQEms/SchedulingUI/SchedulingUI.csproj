@@ -53,9 +53,27 @@
     <Compile Include="Framework\SimpleWidgets.cs" />
     <Compile Include="Framework\Testing.cs" />
     <Compile Include="Controller.cs" />
+    <Compile Include="Framework\TextWidgets.cs" />
+    <Compile Include="SchedulingController.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <ItemGroup />
   <ItemGroup>
-    <Folder Include="Framework\" />
+    <ProjectReference Include="..\Billing\Billing.csproj">
+      <Project>{83c26884-b644-4df1-a54b-a832c846f62d}</Project>
+      <Name>Billing</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Definitions\Definitions.csproj">
+      <Project>{961cf898-6528-4d07-b2a2-1f8c337627cc}</Project>
+      <Name>Definitions</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Demographics\Demographics.csproj">
+      <Project>{814af87e-bc77-4a09-8786-4ba4a0a3f855}</Project>
+      <Name>Demographics</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Support\Support.csproj">
+      <Project>{b03ddcb5-98e1-464a-a3db-4da8c39555be}</Project>
+      <Name>Support</Name>
+    </ProjectReference>
   </ItemGroup>
 </Project>
