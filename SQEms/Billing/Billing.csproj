@@ -47,6 +47,10 @@
       <Project>{B03DDCB5-98E1-464A-A3DB-4DA8C39555BE}</Project>
       <Name>Support</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Definitions\Definitions.csproj">
+      <Project>{961CF898-6528-4D07-B2A2-1F8C337627CC}</Project>
+      <Name>Definitions</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
