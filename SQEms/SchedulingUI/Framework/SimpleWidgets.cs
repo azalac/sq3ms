@@ -88,28 +88,7 @@ namespace SchedulingUI
         }
 
     }
-
-	public class Line : Component
-	{
-		/// <summary>
-		/// The side to render this line on.
-		/// The codes are in LineDrawer (Left, Right, Top, Bottom).
-		/// </summary>
-		/// <value>The side.</value>
-		public uint Side { get; set; }
-
-		private LineDrawer lines = LineDrawer.FromGlobal();
-
-		#region implemented abstract members of Component
-		public override void Draw (IConsole buffer)
-		{
-			lines.Set (0, new Rectangle (Left, Top, Width, Height), Side);
-
-			lines.Draw (buffer);
-		}
-		#endregion
-	}
-
+    
 	public class Label : Component
 	{
 		public string Text { get; set; }
