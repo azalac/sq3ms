@@ -14,7 +14,13 @@ namespace SQEms
     {
         static void Main(string[] args)
 		{
-            Testing.TestInterface();
-		}
+            InterfaceStart.InitConsole();
+
+            InterfaceStart _interface = new InterfaceStart(StandardConsole.INSTANCE);
+
+            _interface.WaitUntilExit();
+
+            InterfaceStart.ResetConsole();
+        }
     }
 }
