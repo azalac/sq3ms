@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Definitions;
 
 namespace Billing
 {
@@ -50,15 +51,4 @@ namespace Billing
         }
     }
 
-    /// <summary>
-    /// All valid billing code responses.
-    /// </summary>
-    public enum BillingCodeResponse
-    {
-        NONE,
-        PAID,
-        DECL,
-        FHCV,
-        CMOH
-    }
 }
