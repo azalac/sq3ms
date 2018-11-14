@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Configuration;
+using Definitions;
 
 namespace Support
 {
@@ -19,7 +20,11 @@ namespace Support
 		/// </summary>
 		static DatabaseManager()
 		{
-			AddTable(new TestTable(), "./db_file.dat");
+			AddTable(new TestTable(), "./test_table.dat");
+
+			AddTable (new PeopleTable (), "./people.dat");
+			AddTable (new AppointmentTable (), "./appointments.dat");
+			AddTable (new HouseholdTable (), "./households.dat");
 		}
 
 		/// <summary>
@@ -114,7 +119,6 @@ namespace Support
 					Data [row [prototype.PrimaryKeyIndex]] = row;
 				}
 			}
-
 		}
 
 		/// <summary>
@@ -123,15 +127,19 @@ namespace Support
 		/// </summary>
 		public void Save()
 		{
-			// save a backup
-			File.Move (Location, Location + "~");
-
-			using (BinaryWriter output = new BinaryWriter(new FileStream(Location, FileMode.Create)))
+			// only save if the prototype isn't read only
+			if (!prototype.ReadOnly)
 			{
-				foreach (object[] row in Data.Values)
-				{
-					prototype.SaveRowImpl (output, row);
-				}
+				// save a backup
+				File.Move (Location, Location + "~");
+
+                using (BinaryWriter output = new BinaryWriter(new FileStream(Location, FileMode.Create)))
+                {
+                    foreach (object[] row in Data.Values)
+                    {
+                        prototype.SaveRowImpl(output, row);
+                    }
+                }
 			}
 		}
 
@@ -229,6 +237,36 @@ namespace Support
 
 		public int PrimaryKeyIndex { get; protected set; }
 
+		public bool ReadOnly { get; protected set; }
+
+		private static Dictionary<Type, Func<BinaryReader, object>> Readers =
+			new Dictionary<Type, Func<BinaryReader, object>>();
+
+		private static Dictionary<Type, Action<BinaryWriter, object>> Writers =
+			new Dictionary<Type, Action<BinaryWriter, object>>();
+
+		protected Func<BinaryReader, object>[] ColumnReaders;
+
+		protected Action<BinaryWriter, object>[] ColumnWriters;
+
+		static DatabaseTablePrototype()
+		{
+			Readers [typeof(string)] = r => r.ReadString ();
+			Writers [typeof(string)] = (w, o) => w.Write ((string)o);
+			
+			Readers [typeof(Int32)] = r => r.ReadInt32 ();
+			Writers [typeof(Int32)] = (w, o) => w.Write ((Int32)o);
+			
+			Readers [typeof(char)] = r => r.ReadChar ();
+			Writers [typeof(char)] = (w, o) => w.Write ((char)o);
+		}
+
+		public DatabaseTablePrototype(int size)
+		{
+			ColumnReaders = new Func<BinaryReader, object>[size];
+			ColumnWriters = new Action<BinaryWriter, object>[size];
+		}
+
 		/// <summary>
 		/// Must be called after initialization. Sets up any cache members.
 		/// </summary>
@@ -237,7 +275,32 @@ namespace Support
 			for (int i = 0; i < Columns.Length; i++)
 			{
 				ColumnsReverse [Columns [i]] = i;
+
+				if (ColumnReaders [i] == null)
+				{
+					if (Readers.ContainsKey (ColumnTypes [i]))
+					{
+						ColumnReaders [i] = Readers [ColumnTypes [i]];
+					}
+					else
+					{
+						System.Diagnostics.Debug.WriteLine ("Warning: Column {0} has no Reader and requires one", i);
+					}
+				}
+				
+				if (ColumnWriters [i] == null)
+				{
+					if (Writers.ContainsKey (ColumnTypes [i]))
+					{
+						ColumnWriters [i] = Writers [ColumnTypes [i]];
+					}
+					else
+					{
+						System.Diagnostics.Debug.WriteLine ("Warning: Column {0} has no Writer and requires one", i);
+					}
+				}
 			}
+
 		}
 
 		/// <summary>
@@ -245,25 +308,42 @@ namespace Support
 		/// </summary>
 		/// <returns>The row</returns>
 		/// <param name="reader">The reader to read from</param>
-		public abstract object[] LoadRowImpl (BinaryReader reader);
+		public virtual object[] LoadRowImpl (BinaryReader reader)
+		{
+			object[] o = new object[ColumnTypes.Length];
+
+			for (int i = 0; i < o.Length; i++)
+			{
+				o [i] = ColumnReaders [i].Invoke (reader);
+			}
+
+			return o;
+		}
 
 		/// <summary>
 		/// Saves a row.
 		/// </summary>
 		/// <param name="writer">The writer to write to</param>
 		/// <param name="row">The row to save</param>
-		public abstract void SaveRowImpl (BinaryWriter writer, object[] row);
+		public virtual void SaveRowImpl (BinaryWriter writer, object[] row)
+		{
+			for (int i = 0; i < ColumnTypes.Length; i++)
+			{
+				ColumnWriters [i].Invoke (writer, row [i]);
+			}
+		}
 	}
 
 	/// <summary>
 	/// An example table prototype.
 	/// </summary>
-	public class TestTable: DatabaseTablePrototype
+	class TestTable: DatabaseTablePrototype
 	{
 
 		#region implemented abstract members of DatabaseTablePrototype
 
-		public TestTable ()
+		public TestTable ():
+			base(2)
 		{
 			Name = "TestTable";
 
@@ -274,18 +354,189 @@ namespace Support
 			PrimaryKeyIndex = 0;
 
 			base.PostInit ();
+		}
 
+		#endregion
+
+	}
+	
+	/// <summary>
+	/// The prototype for the patient table.
+	/// </summary>
+	/// <remarks>
+	/// Fields:
+	/// Int32 - PatientID (PK)
+	/// string- HCN
+	/// string - lastName
+	/// string - firstName
+	/// char - mInitial
+	/// string- dateBirth
+	/// SexTypes - sex
+	/// Int32 - HouseID (FK for household)
+	/// </remarks>
+	class PeopleTable: DatabaseTablePrototype
+	{
+
+		#region implemented abstract members of DatabaseTablePrototype
+
+		public PeopleTable ():
+			base(8)
+		{
+			Name = "Patients";
+
+			Columns = new string[]{
+				"PatientID",
+				"HCN",
+				"lastName",
+				"firstName",
+				"mInitial",
+				"dateBirth",
+				"sex",
+				"HouseID"
+			};
+
+			ColumnTypes = new Type[] {
+				typeof(Int32),
+				typeof(string),
+				typeof(string),
+				typeof(string),
+				typeof(char),
+				typeof(string),
+				typeof(SexTypes),
+				typeof(Int32)
+			};
+
+			ColumnReaders [6] = (r) => (SexTypes)r.ReadInt32();
+
+			ColumnWriters [6] = (r, o) => r.Write(Convert.ToInt32(o));
+
+			PrimaryKeyIndex = 0;
+
+			base.PostInit ();
+		}
+
+		#endregion
+
+	}
+
+	/// <summary>
+	/// The prototype for the appointment table.
+	/// </summary>
+	class AppointmentTable: DatabaseTablePrototype
+	{
+		#region implemented abstract members of DatabaseTablePrototype
+		
+		public AppointmentTable ():
+			base(7)
+		{
+			Name = "Appointments";
+
+			Columns = new string[]{
+				"AppointmentID",
+				"Month",
+				"Week",
+				"Day",
+				"TimeSlot",
+				"PatientID",
+				"CaregiverID"
+			};
+
+			ColumnTypes = new Type[] {
+				typeof(Int32),
+				typeof(Int32),
+				typeof(Int32),
+				typeof(Int32),
+				typeof(Int32),
+				typeof(Int32),
+				typeof(Int32)
+			};
+
+			PrimaryKeyIndex = 0;
+
+			base.PostInit ();
+		}
+
+		#endregion
+
+
+	}
+
+	/// <summary>
+	/// The prototype for the household table.
+	/// </summary>
+	class HouseholdTable: DatabaseTablePrototype
+	{
+		#region implemented abstract members of DatabaseTablePrototype
+
+		public HouseholdTable ():
+			base(7)
+		{
+			Name = "Household";
+
+			Columns = new string[]{
+				"HouseID",
+				"addressLine1",
+				"addressLine2",
+				"city",
+				"province",
+				"numPhone",
+				"HeadOfHouseHCN"
+			};
+
+			ColumnTypes = new Type[] {
+				typeof(Int32),
+				typeof(string),
+				typeof(string),
+				typeof(string),
+				typeof(string),
+				typeof(string),
+				typeof(string)
+			};
+
+			PrimaryKeyIndex = 0;
+
+			base.PostInit ();
+		}
+
+		#endregion
+
+
+	}
+	
+	class BillingMasterTable: DatabaseTablePrototype
+	{
+		#region implemented abstract members of DatabaseTablePrototype
+
+		public BillingMasterTable():
+			base(4)
+		{
+			Name = "BillingMaster";
+
+			Columns = new string[]{"BillingCode", "EffectiveDate", "DollarAmount", "ResponseState"};
+
+			ColumnTypes = new Type[] { typeof(string), typeof(string), typeof(string),
+				typeof(Int32)};
+
+			PrimaryKeyIndex = 0;
+
+			ReadOnly = true;
+
+			base.PostInit ();
 		}
 
 		public override object[] LoadRowImpl (BinaryReader reader)
 		{
-			return new object[] { reader.ReadInt32(), reader.ReadString() };
+			// binaryreaders can't read a line, so a streamreader should be used
+			StreamReader input = new StreamReader (reader.BaseStream);
+
+			//input.readline should be called once, then the string should be parsed
+
+			return null;
 		}
 
 		public override void SaveRowImpl (BinaryWriter writer, object[] row)
 		{
-			writer.Write ((Int32)row [0]);
-			writer.Write ((string)row [1]);
+			// table is read-only, do nothing
 		}
 
 		#endregion
