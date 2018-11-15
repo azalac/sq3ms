@@ -96,11 +96,11 @@ namespace SchedulingUI
 
 		public bool DoWrapping { get; set; }
 
-		public Label()
+		public Label(string Text = "")
 		{
-			Text = "";
+            this.Text = Text;
 		}
-
+        
         /// <summary>
         /// Gets the relative position for a character's position.
 		/// Does not account for the contents of the text.
@@ -586,6 +586,7 @@ namespace SchedulingUI
 	{
 		REDRAW,
 		SET_FOCUS,
+        SET_CONTROLLER
 	}
 
     public class RootContainer : Container
@@ -594,6 +595,8 @@ namespace SchedulingUI
 
 		public Component FocusedComponent { get; private set; }
 
+        public InputController FocusedController { get; private set; }
+        
 		private Thread EventThread;
 
 		private BlockingCollection<Tuple<InterfaceEvent, object, EventArgs>> Events =
@@ -604,9 +607,9 @@ namespace SchedulingUI
             ComponentAdded += CheckCount;
             ComponentRemoved += CheckCount;
 
-			this.RequestRedraw += CreateHandler<RedrawEventArgs> (InterfaceEvent.REDRAW);
+			RequestRedraw += CreateHandler<RedrawEventArgs> (InterfaceEvent.REDRAW);
 
-			this.RequestFocus += CreateHandler<ComponentEventArgs> (InterfaceEvent.SET_FOCUS);
+			RequestFocus += CreateHandler<ComponentEventArgs> (InterfaceEvent.SET_FOCUS);
 
 			EventThread = new Thread (new ThreadStart (HandleEvents))
 			{
@@ -627,16 +630,20 @@ namespace SchedulingUI
 
 				System.Diagnostics.Debug.WriteLine ("Handling " + evt.Item1);
 
-				switch (evt.Item1) {
-				case InterfaceEvent.REDRAW:
-					Redraw (evt.Item2, evt.Item3 as RedrawEventArgs);
-					break;
-				case InterfaceEvent.SET_FOCUS:
-					SetFocus (evt.Item2, evt.Item3 as ComponentEventArgs);
-					break;
-				default:
-					throw new ArgumentOutOfRangeException ();
-				}
+                switch (evt.Item1)
+                {
+                    case InterfaceEvent.REDRAW:
+                        Redraw(evt.Item2, evt.Item3 as RedrawEventArgs);
+                        break;
+                    case InterfaceEvent.SET_FOCUS:
+                        SetFocus(evt.Item2, evt.Item3 as ComponentEventArgs);
+                        break;
+                    case InterfaceEvent.SET_CONTROLLER:
+                        SetController(evt.Item2, evt.Item3 as ControllerEventArgs);
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
 			}
 		}
 
@@ -662,6 +669,31 @@ namespace SchedulingUI
 				FocusedComponent.HasFocus = true;
 			}
 		}
+
+        private void SetController(object sender, ControllerEventArgs controller)
+        {
+            if(FocusedController != null)
+            {
+                FocusedController.HasFocus = false;
+            }
+
+            FocusedController = controller.Controller;
+
+            if(FocusedController != null)
+            {
+                FocusedController.HasFocus = true;
+            }
+        }
+
+        public void OnRequestController(object sender, ControllerEventArgs args)
+        {
+            Events.Add(new Tuple<InterfaceEvent, object, EventArgs>(InterfaceEvent.SET_CONTROLLER, sender, args));
+        }
+
+        public void RegisterController(InputController controller)
+        {
+            controller.RequestFocus += CreateHandler<ControllerEventArgs>(InterfaceEvent.SET_CONTROLLER);
+        }
 
 		private void Redraw(object sender, RedrawEventArgs e)
 		{
