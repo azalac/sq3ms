@@ -321,10 +321,11 @@ namespace SchedulingUI
 		private void SlowDraw(IConsole buffer)
 		{
             // optimization because system calls are expensive
-            // somehow this was eating more cpu than the putcharacter
+            // somehow these were eating more cpu than the putcharacter
             int width = buffer.BufferWidth;
+            int height = buffer.BufferHeight;
 
-			for (int y = 0; y < buffer.BufferHeight; y++)
+			for (int y = 0; y < height; y++)
 			{
 				for (int x = 0; x < width; x++)
 				{
