@@ -103,6 +103,8 @@ namespace SchedulingUI
 		/// </summary>
 		public override void Draw(IConsole buffer)
 		{
+            int xoffset = Center ? (Width - TextLength) / 2 : 0;
+
             string drawtext = Text + new string(' ', TextLength - Text.Length);
 
             string pre = SelectIndex > 0 ? drawtext.Substring(0, SelectIndex) : "";
@@ -110,30 +112,30 @@ namespace SchedulingUI
             string post = SelectIndex < drawtext.Length - 1 ? drawtext.Substring(SelectIndex + 1) : "";
 
             UpdateColors(buffer, 0);
-            buffer.PutString(Left, Top, pre);
+            buffer.PutString(Left + xoffset, Top, pre);
 
             UpdateColors(buffer, SelectIndex);
-            buffer.PutCharacter(Left + SelectIndex, Top, sel);
+            buffer.PutCharacter(Left + SelectIndex + xoffset, Top, sel);
 
             UpdateColors(buffer, SelectIndex + 1);
-            buffer.PutString(Left + SelectIndex + 1, Top, post);
+            buffer.PutString(Left + SelectIndex + 1 + xoffset, Top, post);
 		}
 
 		
 
         private void UpdateColors(IConsole buffer, int current_index)
         {
-            if(!HasFocus)
-            {
-                buffer.Foreground = Foreground;
-                buffer.Background = Background;
-                return;
-            }
-
             if (current_index == SelectIndex)
             {
                 buffer.Foreground = Foreground;
                 buffer.Background = ColorCategory.HIGHLIGHT_BG;
+                return;
+            }
+
+            if (!HasFocus)
+            {
+                buffer.Foreground = Foreground;
+                buffer.Background = Background;
             }
             else
             {
@@ -402,7 +404,25 @@ namespace SchedulingUI
             }
         }
 
-        public readonly List<IComponent> Components = new List<IComponent>();
+        public bool HasFocus {
+            get
+            {
+                return hasFocus;
+            }
+            set
+            {
+                // TODO components need to be unfocussed once this controller is unfocussed
+                hasFocus = value;
+            }
+        }
+
+        public bool Horizontal { get; set; }
+
+        public event EventHandler<ControllerEventArgs> RequestFocus;
+
+        private readonly List<object> Components = new List<object>();
+
+        private bool hasFocus = false;
 
         private Component parent;
 
@@ -410,16 +430,19 @@ namespace SchedulingUI
         
         private void HandleKeypress(object sender, ConsoleKeyEventArgs args)
         {
-            if (!Parent.Visible)
+            if (!Parent.Visible || !HasFocus)
             {
                 return;
             }
 
-            if (args.Key.Key == ConsoleKey.UpArrow)
+            ConsoleKey Dec = Horizontal ? ConsoleKey.LeftArrow : ConsoleKey.UpArrow;
+            ConsoleKey Inc = Horizontal ? ConsoleKey.RightArrow : ConsoleKey.DownArrow;
+
+            if (args.Key.Key == Dec)
             {
                 SetSelectedIndex(Mod(selectedIndex - 1, Components.Count));
             }
-            else if (args.Key.Key == ConsoleKey.DownArrow)
+            else if (args.Key.Key == Inc)
             {
                 SetSelectedIndex(Mod(selectedIndex + 1, Components.Count));
             }
@@ -433,31 +456,54 @@ namespace SchedulingUI
                 selectedIndex = -1;
                 return;
             }
-
-            // do nothing if the indices are the same
-            if(selectedIndex == newSelection)
-            {
-                return;
-            }
-
+            
             int oldSelection = selectedIndex;
             selectedIndex = newSelection;
 
-            parent.OnRequestFocus(this, new ComponentEventArgs(Components[newSelection]));
-            parent.OnRequestRedraw(this, new RedrawEventArgs(Components[newSelection]));
-
-            if(oldSelection != -1)
+            if (Components[selectedIndex] is IComponent c)
             {
-                parent.OnRequestRedraw(this, new RedrawEventArgs(Components[oldSelection]));
+                parent.OnRequestFocus(this, new ComponentEventArgs(c));
+                parent.OnRequestRedraw(this, new RedrawEventArgs(c));
+            }else if(Components[selectedIndex] is InputController c2)
+            {
+                c2.HasFocus = true;
             }
 
+            if(oldSelection != -1 && Components[oldSelection] is IComponent)
+            {
+                parent.OnRequestRedraw(this, new RedrawEventArgs(Components[oldSelection] as IComponent));
+            }else if(oldSelection != -1 && Components[oldSelection] is InputController)
+            {
+                (Components[oldSelection] as InputController).HasFocus = false;
+            }
+
+        }
+
+        public void Add(IComponent component)
+        {
+            Components.Add(component);
+        }
+
+        public void Add(InputController controller)
+        {
+            Components.Add(controller);
+
+            controller.RequestFocus += OnRequestFocus;
+        }
+
+        public void OnRequestFocus(object sender, ControllerEventArgs args)
+        {
+            if (RequestFocus != null)
+            {
+                RequestFocus(sender, args);
+            }
         }
 
         private static int Mod(int a, int n)
         {
             return (a % n + n) % n;
         }
-
+        
     }
 
     public class TabbedPane : Container
@@ -496,5 +542,15 @@ namespace SchedulingUI
 
 
 	}
+
+    public class ControllerEventArgs : EventArgs
+    {
+        public InputController Controller { get; private set; }
+
+        public ControllerEventArgs(InputController controller)
+        {
+            Controller = controller;
+        }
+    }
 
 }
