@@ -63,6 +63,17 @@ namespace Support
             return null;
         }
 
+        /// <summary>
+        /// Gets the number of appointments for a given day.
+        /// </summary>
+        /// <param name="week">The week to check</param>
+        /// <param name="day">The day to check</param>
+        /// <returns>The number of appointments</returns>
+        public int AppointmentCount(int week, int day)
+        {
+            return 0;
+        }
+
     }
 }
 
