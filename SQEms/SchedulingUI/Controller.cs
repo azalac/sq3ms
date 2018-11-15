@@ -4,6 +4,16 @@ using System;
 
 namespace SchedulingUI
 {
+    public class Reference<T>
+    {
+        public T Value;
+
+        public Reference(T initial = default(T))
+        {
+            Value = initial;
+        }
+    }
+
     public class InterfaceStart
     {
         private RootContainer root;
@@ -11,10 +21,14 @@ namespace SchedulingUI
         private KeyboardInput input;
 
         private WeekHeader header;
-        
+
+        private TabbedPane Content = new TabbedPane();
+
 		private Menu menu;
 
 		private Calendar calendar;
+        
+        private TimeSlotSelectionController TimeSlotSelector = new TimeSlotSelectionController();
 
         public InterfaceStart(IConsole buffer)
         {
@@ -42,23 +56,29 @@ namespace SchedulingUI
 				PreferredHeight = 20
 			};
 
-			binaryContainer1.Add (header, binaryContainer2);
-			binaryContainer2.Add (menu, calendar);
-
-            binaryContainer1.First = header;
-            binaryContainer1.Second = binaryContainer2;
+            binaryContainer2.Add(menu, calendar);
 
             binaryContainer2.First = menu;
             binaryContainer2.Second = calendar;
 
+            Content.Add(binaryContainer2);
+            Content.Add(TimeSlotSelector);
+
+            binaryContainer1.Add (header, Content);
+
+            binaryContainer1.First = header;
+            binaryContainer1.Second = Content;
+
             root.Add(binaryContainer1);
 
+            
+            calendar.CurrentWeek = header.Week;
 
+            menu.Init(root);
 
-            calendar.Header = header;
+            TimeSlotSelector.Init(root);
 
-
-
+            Content.SetSelectedIndex(1);
 
 
             root.DoLayout();
@@ -66,10 +86,8 @@ namespace SchedulingUI
 
             System.Diagnostics.Debug.WriteLine(menu.Width);
 
-			menu.Init ();
-
             input.StartThread();
-
+            
         }
         
         public void WaitUntilExit()
@@ -93,7 +111,9 @@ namespace SchedulingUI
     
 	class WeekHeader: BinaryContainer
 	{
-        public int Week { get; private set; }
+        public Reference<int> Week { get; private set; }
+
+        public AppointmentScheduler Scheduler { get; set; }
 
         private Label nav_instructions = new Label()
         {
@@ -143,6 +163,8 @@ namespace SchedulingUI
 
             Vertical = false;
 
+            Week = new Reference<int>(0);
+
             KeyPress += HeaderWeek_Keypress;
 
         }
@@ -156,23 +178,45 @@ namespace SchedulingUI
 
             if (args.Key.Key == ConsoleKey.I)
             {
-                Week--;
+                Week.Value--;
             }
             else if (args.Key.Key == ConsoleKey.K)
             {
-                Week++;
+                Week.Value++;
             }
 
-            nav_instructions.Text = string.Format("I /\\\nMONTH {0}\nK \\/", Week);
+            nav_instructions.Text = string.Format("I /\\\nMONTH {0}\nK \\/", Week.Value);
+
+
+            for (int i = 0; i < CalendarInfo.WEEK_LENGTH; i++)
+            {
+                int? count = Scheduler?.AppointmentCount(Week.Value, i);
+
+                if (count.HasValue)
+                {
+                    day_labels[i].Text = day_names[i] + string.Format("\n\n{0}/{1}",
+                        count.Value, CalendarInfo.MAX_APPOINTMENTS[i]);
+                }
+                else
+                {
+                    day_labels[i].Text = day_names[i] + string.Format("\n\n{0}/{1}",
+                        "?", CalendarInfo.MAX_APPOINTMENTS[i]);
+                }
+
+                OnRequestRedraw(this, new RedrawEventArgs(day_labels[i]));
+            }
 
             OnRequestRedraw(this, new RedrawEventArgs(nav_instructions));
+
         }
     }
 
-	class Menu: GridContainer
-	{
-        InputController controller = new InputController();
+    class Menu : GridContainer
+    {
+        public AppointmentScheduler Scheduler { get; set; }
 
+        InputController controller = new InputController();
+        
         private Button Patients = new Button()
         {
             Text = "Patients"
@@ -192,10 +236,10 @@ namespace SchedulingUI
 		{
             controller.Parent = this;
 
-            controller.Components.Add(Patients);
-            controller.Components.Add(Schedule);
-            controller.Components.Add(Third);
-
+            controller.Add(Patients);
+            controller.Add(Schedule);
+            controller.Add(Third);
+            
             CountY = 6;
 			
 			PreferredWidth = 13;
@@ -207,17 +251,21 @@ namespace SchedulingUI
             Add (Patients, Schedule, Third);
         }
 
-        public void Init()
+        public void Init(RootContainer root)
 		{
+            root.RegisterController(controller);
             controller.SetSelectedIndex(0);
-		}
-	}
+
+            root.OnRequestController(this, new ControllerEventArgs(controller));
+        }
+        
+    }
 
 	class Calendar: GridContainer
 	{
-        public AppointmentScheduler Scheduler { get; set; }
+        public Reference<int> CurrentWeek { get; set; }
 
-        public WeekHeader Header { get; set; }
+        public AppointmentScheduler Scheduler { get; set; }
 
         private readonly Label[] Labels;
 
@@ -247,14 +295,12 @@ namespace SchedulingUI
         protected override void DoLayoutImpl()
         {
             base.DoLayoutImpl();
-
-            int week = Header.Week;
-
+            
             for(int day = 0; day < CalendarInfo.WEEK_LENGTH; day++)
             {
                 for(int slot = 0; slot < CalendarInfo.MAX_APPOINTMENTS[day]; slot++)
                 {
-                    Tuple<int, int> apt = Scheduler?.GetPatientIDs(new AptTimeSlot(week, day, slot));
+                    Tuple<int, int> apt = Scheduler?.GetPatientIDs(new AptTimeSlot(CurrentWeek.Value, day, slot));
 
                     int i = slot * CountX + day;
 
