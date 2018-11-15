@@ -233,7 +233,7 @@ namespace SchedulingUI
 				buffer.Background = Background;
 				buffer.Foreground = Foreground;
 
-                string filler = new string(' ', Width);
+                //string filler = new string(' ', Width);
                 
                 // clear the background of this container
                 for (int y = Top; y < Top + Height; y++)
@@ -248,7 +248,7 @@ namespace SchedulingUI
                     }
                     else
                     {
-                        buffer.PutString(Left, y, filler);
+                        //buffer.PutString(Left, y, filler);
                     }
                 }
 				
@@ -347,6 +347,9 @@ namespace SchedulingUI
         public static readonly StandardConsole INSTANCE = new StandardConsole();
 
         private Stack<Tuple<ConsoleColor, ConsoleColor>> colors = new Stack<Tuple<ConsoleColor, ConsoleColor>>();
+        
+        private ConsoleColor bg_last,
+                             fg_last;
 
         private StandardConsole()
         {
@@ -401,15 +404,24 @@ namespace SchedulingUI
 
         public void PushColors()
         {
-            colors.Push(new Tuple<ConsoleColor, ConsoleColor>(Console.ForegroundColor, Console.BackgroundColor));
+            colors.Push(new Tuple<ConsoleColor, ConsoleColor>(fg_last, bg_last));
         }
 
         public void PopColors()
         {
             Tuple<ConsoleColor, ConsoleColor> c = colors.Pop();
 
-            Console.ForegroundColor = c.Item1;
-            Console.BackgroundColor = c.Item2;
+            if (c.Item1 != fg_last)
+            {
+                Console.ForegroundColor = c.Item1;
+                fg_last = c.Item1;
+            }
+
+            if (c.Item2 != bg_last)
+            {
+                Console.BackgroundColor = c.Item2;
+                bg_last = c.Item2;
+            }
         }
 
         public bool SupportsComplex
@@ -440,7 +452,13 @@ namespace SchedulingUI
         {
             set
             {
-                Console.ForegroundColor = ColorScheme.Current[value];
+                ConsoleColor requestedFg = ColorScheme.Current[value];
+
+                if (requestedFg != fg_last)
+                {
+                    Console.ForegroundColor = requestedFg;
+                    fg_last = requestedFg;
+                }
             }
         }
 
@@ -448,7 +466,13 @@ namespace SchedulingUI
         {
             set
             {
-                Console.BackgroundColor = ColorScheme.Current[value];
+                ConsoleColor requestedBg = ColorScheme.Current[value];
+
+                if (requestedBg != bg_last)
+                {
+                    Console.BackgroundColor = requestedBg;
+                    bg_last = requestedBg;
+                }
             }
         }
 
