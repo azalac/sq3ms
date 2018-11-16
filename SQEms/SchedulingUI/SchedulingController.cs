@@ -47,15 +47,23 @@ namespace SchedulingUI
     {
         private readonly InputController controller = new InputController();
 
+        private LineDrawer lines = LineDrawer.FromGlobal();
+
         private TextInput TimeSlot = new TextInput()
         {
             TextLength = 10,
             Center = true
         };
 
-        private Button Today = new Button()
+        private TextInput WeekInput = new TextInput()
         {
-            Text = "Today",
+            TextLength = 10,
+            Center = true
+        };
+
+        private TextInput DayInput = new TextInput()
+        {
+            TextLength = 10,
             Center = true
         };
 
@@ -105,28 +113,27 @@ namespace SchedulingUI
 
         private InputController SpanSelector = new InputController() { Horizontal = true },
                                 AmountSelector = new InputController() { Horizontal = true },
-                                ControlSelector = new InputController() { Horizontal = true };
+                                ControlSelector = new InputController() { Horizontal = true },
+                                DateSelector = new InputController() { Horizontal = true };
+
+        private List<Tuple<IComponent, ColorCategory>> HighlightedComponents = new List<Tuple<IComponent, ColorCategory>>();
 
         private AptTimeSlot aptTimeSlot = new AptTimeSlot(0, 0, 0);
 
         public TimeSlotSelectionController()
         {
             CountX = 3;
-            CountY = 7;
+            CountY = 5;
 
             // Timeslot entry
-            Add(Label("TimeSlot #"), TimeSlot, Empty());
-
-            // Today header
-            Centered(Label("[Date]"));
-            Centered(Today);
-            Centered(Label("-- OR --"));
-
+            Add(Label("Week"), Label("Day"), Label("TimeSlot"));
+            Add(WeekInput, DayInput, TimeSlot);
+            
             // In X time
             Add(ByDay, Empty(), ByWeek);
             Add(Plus1, Plus2, Plus3);
 
-            // Controll footer
+            // Control footer
             Add(Reset, DateVisual, Submit);
 
             // Setup controllers
@@ -140,17 +147,55 @@ namespace SchedulingUI
             ControlSelector.Add(Reset);
             ControlSelector.Add(Submit);
 
+            DateSelector.Add(WeekInput);
+            DateSelector.Add(DayInput);
+            DateSelector.Add(TimeSlot);
+
             SpanSelector.Parent = this;
             AmountSelector.Parent = this;
             ControlSelector.Parent = this;
+            DateSelector.Parent = this;
             controller.Parent = this;
-
-            controller.Add(TimeSlot);
-            controller.Add(Today);
+            
+            controller.Add(DateSelector);
             controller.Add(SpanSelector);
             controller.Add(AmountSelector);
             controller.Add(ControlSelector);
 
+            controller.SelectionChange += UpdateGrid;
+
+        }
+
+        private void UpdateGrid(object sender, ObjectEventArgs e)
+        {
+            foreach (Tuple<IComponent, ColorCategory> t in HighlightedComponents)
+            {
+                t.Item1.Background = t.Item2;
+            }
+
+            HighlightedComponents.Clear();
+
+            if (e.Value is IComponent)
+            {
+                AddHighlighted(e.Value);
+            }
+            else if(e.Value is InputController controller)
+            {
+                foreach(object c in controller)
+                {
+                    AddHighlighted(c);
+                }
+            }
+        }
+
+        private void AddHighlighted(object obj)
+        {
+            if (obj is IComponent component)
+            {
+                HighlightedComponents.Add(new Tuple<IComponent, ColorCategory>(component, component.Background));
+
+                component.Background = ColorCategory.HIGHLIGHT_BG_2;
+            }
         }
 
         public void Init(RootContainer root)
@@ -161,8 +206,11 @@ namespace SchedulingUI
             SpanSelector.SetSelectedIndex(0);
             AmountSelector.SetSelectedIndex(0);
             ControlSelector.SetSelectedIndex(1);
+            DateSelector.SetSelectedIndex(0);
 
             root.OnRequestController(this, new ControllerEventArgs(controller));
+            root.OnRequestFocus(this, new ComponentEventArgs(WeekInput));
+            root.OnRequestRedraw(this, new RedrawEventArgs(this));
             
         }
 
@@ -193,6 +241,11 @@ namespace SchedulingUI
         private void Centered(IComponent component)
         {
             Add(Empty(), component, Empty());
+        }
+
+        public override void Draw(IConsole buffer)
+        {
+            base.Draw(buffer);
         }
 
     }

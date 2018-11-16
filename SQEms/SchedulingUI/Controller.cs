@@ -4,6 +4,10 @@ using System;
 
 namespace SchedulingUI
 {
+    /// <summary>
+    /// A reference to another object.
+    /// </summary>
+    /// <typeparam name="T">The type to reference</typeparam>
     public class Reference<T>
     {
         public T Value;
@@ -13,7 +17,10 @@ namespace SchedulingUI
             Value = initial;
         }
     }
-
+    
+    /// <summary>
+    /// The main class for the interface controllers
+    /// </summary>
     public class InterfaceStart
     {
         private RootContainer root;
@@ -30,6 +37,11 @@ namespace SchedulingUI
         
         private TimeSlotSelectionController TimeSlotSelector = new TimeSlotSelectionController();
 
+        /// <summary>
+        /// Change this to be default false to see the TimeSlotSelector prototpy.
+        /// </summary>
+        private Reference<bool> OnHomeScreen = new Reference<bool>(true);
+
         public InterfaceStart(IConsole buffer)
         {
             root = new RootContainer(buffer);
@@ -45,16 +57,20 @@ namespace SchedulingUI
 
 			calendar = new Calendar();
 
+            // Contains the week header and the content
             BinaryContainer binaryContainer1 = new BinaryContainer()
 			{
 				Vertical = true
 			};
 
+            // Initial Content - Contains the menu and the calendar
             BinaryContainer binaryContainer2 = new BinaryContainer()
 			{
 				Vertical = false,
 				PreferredHeight = 20
 			};
+
+            // SET UP CONTAINERS
 
             binaryContainer2.Add(menu, calendar);
 
@@ -70,22 +86,29 @@ namespace SchedulingUI
             binaryContainer1.Second = Content;
 
             root.Add(binaryContainer1);
-
             
+            // FINISHED CONTAINER SET UP
+
+
+
             calendar.CurrentWeek = header.Week;
 
-            menu.Init(root);
-
-            TimeSlotSelector.Init(root);
-
-            Content.SetSelectedIndex(1);
-
+            // change this to false to see the real initial screen
+            if(!OnHomeScreen.Value)
+            {
+                Content.SetSelectedIndex(1);
+                TimeSlotSelector.Init(root);
+            }
+            else
+            {
+                Content.SetSelectedIndex(0);
+                menu.Init(root);
+            }
 
             root.DoLayout();
+
             root.Draw();
-
-            System.Diagnostics.Debug.WriteLine(menu.Width);
-
+            
             input.StartThread();
             
         }
@@ -109,10 +132,19 @@ namespace SchedulingUI
 
     }
     
+    /// <summary>
+    /// The week header at the top of the console.
+    /// </summary>
 	class WeekHeader: BinaryContainer
 	{
+        /// <summary>
+        /// The current week selection.
+        /// </summary>
         public Reference<int> Week { get; private set; }
 
+        /// <summary>
+        /// The Scheduler object (used to update appointment counts)
+        /// </summary>
         public AppointmentScheduler Scheduler { get; set; }
 
         private Label nav_instructions = new Label()
@@ -138,8 +170,15 @@ namespace SchedulingUI
 
         private static readonly string[] day_names = new string[]{ "SUN", "MON", "TUE", "WED", "THUR", "FRI", "SAT" };
 
-        public WeekHeader()
+        /// <summary>
+        /// Whether this header should accept input (to change the current week).
+        /// </summary>
+        private Reference<bool> AcceptInput;
+
+        public WeekHeader(Reference<bool> OnHomeScreen)
         {
+            AcceptInput = OnHomeScreen;
+
             for (int i = 0; i < day_names.Length; i++)
             {
                 day_labels[i] = new Label()
@@ -171,46 +210,55 @@ namespace SchedulingUI
 
         private void HeaderWeek_Keypress(object sender, ConsoleKeyEventArgs args)
         {
-            if (!Visible)
+            if (!Visible || !AcceptInput.Value)
             {
                 return;
             }
 
+            bool needsRedraw = false;
+
             if (args.Key.Key == ConsoleKey.I)
             {
                 Week.Value--;
+                needsRedraw = true;
             }
             else if (args.Key.Key == ConsoleKey.K)
             {
                 Week.Value++;
+                needsRedraw = true;
             }
 
-            nav_instructions.Text = string.Format("I /\\\nMONTH {0}\nK \\/", Week.Value);
-
-
-            for (int i = 0; i < CalendarInfo.WEEK_LENGTH; i++)
+            if (needsRedraw)
             {
-                int? count = Scheduler?.AppointmentCount(Week.Value, i);
+                nav_instructions.Text = string.Format("I /\\\nMONTH {0}\nK \\/", Week.Value);
 
-                if (count.HasValue)
+
+                for (int i = 0; i < CalendarInfo.WEEK_LENGTH; i++)
                 {
-                    day_labels[i].Text = day_names[i] + string.Format("\n\n{0}/{1}",
-                        count.Value, CalendarInfo.MAX_APPOINTMENTS[i]);
-                }
-                else
-                {
-                    day_labels[i].Text = day_names[i] + string.Format("\n\n{0}/{1}",
-                        "?", CalendarInfo.MAX_APPOINTMENTS[i]);
+                    int? count = Scheduler?.AppointmentCount(Week.Value, i);
+
+                    if (count.HasValue)
+                    {
+                        day_labels[i].Text = day_names[i] + string.Format("\n\n{0}/{1}",
+                            count.Value, CalendarInfo.MAX_APPOINTMENTS[i]);
+                    }
+                    else
+                    {
+                        day_labels[i].Text = day_names[i] + string.Format("\n\n{0}/{1}",
+                            "?", CalendarInfo.MAX_APPOINTMENTS[i]);
+                    }
+
+                    OnRequestRedraw(this, new RedrawEventArgs(day_labels[i]));
                 }
 
-                OnRequestRedraw(this, new RedrawEventArgs(day_labels[i]));
+                OnRequestRedraw(this, new RedrawEventArgs(nav_instructions));
             }
-
-            OnRequestRedraw(this, new RedrawEventArgs(nav_instructions));
-
         }
     }
 
+    /// <summary>
+    /// The menu on the left side of the initial screen.
+    /// </summary>
     class Menu : GridContainer
     {
         public AppointmentScheduler Scheduler { get; set; }
@@ -261,10 +309,19 @@ namespace SchedulingUI
         
     }
 
+    /// <summary>
+    /// The calendar on the right side of the home screen.
+    /// </summary>
 	class Calendar: GridContainer
 	{
+        /// <summary>
+        /// A reference to the current week. Used to get patient information.
+        /// </summary>
         public Reference<int> CurrentWeek { get; set; }
 
+        /// <summary>
+        /// The Scheduler. Used to query appointments.
+        /// </summary>
         public AppointmentScheduler Scheduler { get; set; }
 
         private readonly Label[] Labels;
@@ -292,6 +349,9 @@ namespace SchedulingUI
 			Add (Labels);
 		}
 
+        /// <summary>
+        /// Updates the calendar's labels.
+        /// </summary>
         protected override void DoLayoutImpl()
         {
             base.DoLayoutImpl();

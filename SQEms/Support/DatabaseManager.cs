@@ -503,6 +503,9 @@ namespace Support
 
 	}
 	
+    /// <summary>
+    /// The table which represents all billing info.
+    /// </summary>
 	class BillingMasterTable: DatabaseTablePrototype
 	{
 		#region implemented abstract members of DatabaseTablePrototype
