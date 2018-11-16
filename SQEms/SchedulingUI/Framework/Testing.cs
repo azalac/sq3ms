@@ -6,6 +6,11 @@ using System.Threading.Tasks;
 
 namespace SchedulingUI
 {
+    /// <summary>
+    /// A testing class which helps weed out bugs in specific components, and
+    /// demonstrates the Framework's capabilities. Should be working. Has not
+    /// been updated to use InputControllers yet.
+    /// </summary>
 	public static class Testing
 	{
 		public static void TestInterface()
