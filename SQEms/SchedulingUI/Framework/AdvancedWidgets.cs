@@ -7,11 +7,20 @@ using System.Threading;
 
 namespace SchedulingUI
 {
-
+    /// <summary>
+    /// A component which can be typed into.
+    /// </summary>
 	public class TextInput : Label
 	{
-
+        /// <summary>
+        /// The currently-selected index.
+        /// </summary>
 		public int SelectIndex { get; set; }
+
+        /// <summary>
+        /// The maximum length for text. Allows for 'TextLength - 1' characters
+        /// in the Text property.
+        /// </summary>
 		public int TextLength { get; set; }
 
 		public TextInput(int TextLength = 10)
@@ -21,6 +30,11 @@ namespace SchedulingUI
 			KeyPress += HandleKeyPress;
         }
 
+        /// <summary>
+        /// Handles arrow control, character deletion, and character insertion.
+        /// </summary>
+        /// <param name="sender">The keyboard input object</param>
+        /// <param name="args">The console key</param>
 		private void HandleKeyPress(object sender, ConsoleKeyEventArgs args)
 		{
 			// if this component doesn't have focus, don't do the keypress
@@ -120,9 +134,13 @@ namespace SchedulingUI
             UpdateColors(buffer, SelectIndex + 1);
             buffer.PutString(Left + SelectIndex + 1 + xoffset, Top, post);
 		}
-
-		
-
+        
+        /// <summary>
+        /// Updates the colors of the buffer depending on the current index of
+        /// the text.
+        /// </summary>
+        /// <param name="buffer">The buffer to update</param>
+        /// <param name="current_index">The index in the string</param>
         private void UpdateColors(IConsole buffer, int current_index)
         {
             if (current_index == SelectIndex)
@@ -145,6 +163,9 @@ namespace SchedulingUI
         }
 	}
 
+    /// <summary>
+    /// A component which can be activated with the 'Enter' key.
+    /// </summary>
 	public class Button : Label
     {
         /// <summary>
@@ -165,13 +186,16 @@ namespace SchedulingUI
         /// </summary>
         private static DateTime UNIX_EPOCH = new DateTime(1970, 1, 1);
         
+        /// <summary>
+        /// An event which is invoked if this component is focused, and is visible.
+        /// Only 'Enter' can invoke this event.
+        /// </summary>
         public event EventHandler<ComponentEventArgs> Action;
 
         public Button()
         {
 			this.KeyPress += HandleKeyPress;
 			Text = "Button";
-
         }
 
         private void HandleKeyPress(object sender, ConsoleKeyEventArgs args)
@@ -204,6 +228,11 @@ namespace SchedulingUI
 
 	}
 
+    /// <summary>
+    /// A component which contains many TextInputs and their names/labels.
+    /// This component is not very useful, so it is not commented.
+    /// <see cref="InputController"/> is more flexible and easy to use.
+    /// </summary>
     public class InputArea : Container
 	{
 		private readonly string[] fields;
@@ -258,13 +287,10 @@ namespace SchedulingUI
 			for (int i = 0; i < fields.Length; i++)
 			{
 				labels [i] = new Label () {
-					Text = fields[i],
-					ZIndex = 2 * i
+					Text = fields[i]
 				};
                 
-				components [i] = new TextInput () {
-					ZIndex = 2 * i + 1
-				};
+				components [i] = new TextInput ();
 			}
 
 			KeyPress += HandleKeyPress;
@@ -384,9 +410,17 @@ namespace SchedulingUI
     /// <remarks>
     /// This is not a component. It controls the components, but has no visual aspect.
     /// Components that should be controlled by it need to be added to its internal list.
+    /// 
+    /// Other InputControllers can be nested within InputControllers, but they
+    /// should only be nested one level to prevent odd input handling.
     /// </remarks>
-    public class InputController
+    public class InputController : IEnumerable
     {
+        /// <summary>
+        /// The component this controller uses to determine if it should accept
+        /// input or not (based on visibility). Also hooks into the parent's
+        /// keypress event.
+        /// </summary>
         public Component Parent {
             get
             {
@@ -416,9 +450,20 @@ namespace SchedulingUI
             }
         }
 
+        /// <summary>
+        /// If this input should use Up+Down arrows (false) or Left+Right arrows (true).
+        /// </summary>
         public bool Horizontal { get; set; }
 
+        /// <summary>
+        /// An event which requests a controller be focused
+        /// </summary>
         public event EventHandler<ControllerEventArgs> RequestFocus;
+
+        /// <summary>
+        /// Invoked whenever the selection changes.
+        /// </summary>
+        public event EventHandler<ObjectEventArgs> SelectionChange;
 
         private readonly List<object> Components = new List<object>();
 
@@ -427,16 +472,25 @@ namespace SchedulingUI
         private Component parent;
 
         private int selectedIndex = -1;
-        
+
+        /// <summary>
+        /// The keys which control all inputs. Numpad arrows are used to
+        /// navigate (arrows conflict with TextInput).
+        /// </summary>
+        public const ConsoleKey VERT_INC = ConsoleKey.NumPad2,
+                                VERT_DEC = ConsoleKey.NumPad8,
+                                HORZ_INC = ConsoleKey.NumPad6,
+                                HORZ_DEC = ConsoleKey.NumPad4;
+
         private void HandleKeypress(object sender, ConsoleKeyEventArgs args)
         {
             if (!Parent.Visible || !HasFocus)
             {
                 return;
             }
-
-            ConsoleKey Dec = Horizontal ? ConsoleKey.LeftArrow : ConsoleKey.UpArrow;
-            ConsoleKey Inc = Horizontal ? ConsoleKey.RightArrow : ConsoleKey.DownArrow;
+            
+            ConsoleKey Dec = Horizontal ? HORZ_DEC : VERT_DEC;
+            ConsoleKey Inc = Horizontal ? HORZ_INC : VERT_INC;
 
             if (args.Key.Key == Dec)
             {
@@ -446,8 +500,13 @@ namespace SchedulingUI
             {
                 SetSelectedIndex(Mod(selectedIndex + 1, Components.Count));
             }
+            
         }
-        
+
+        /// <summary>
+        /// Sets the currently-selected component or controller.
+        /// </summary>
+        /// <param name="newSelection"></param>
         public void SetSelectedIndex(int newSelection)
         {
             // do nothing if there are no components
@@ -460,30 +519,59 @@ namespace SchedulingUI
             int oldSelection = selectedIndex;
             selectedIndex = newSelection;
 
-            if (Components[selectedIndex] is IComponent c)
+            // Try to invoke SelectionChange
+            if(SelectionChange != null)
             {
-                parent.OnRequestFocus(this, new ComponentEventArgs(c));
-                parent.OnRequestRedraw(this, new RedrawEventArgs(c));
-            }else if(Components[selectedIndex] is InputController c2)
-            {
-                c2.HasFocus = true;
+                SelectionChange(this, new ObjectEventArgs(Components[selectedIndex]));
             }
 
-            if(oldSelection != -1 && Components[oldSelection] is IComponent)
+            // Redraw and Focus new component if it's a component
+            if (Components[selectedIndex] is IComponent _new)
             {
-                parent.OnRequestRedraw(this, new RedrawEventArgs(Components[oldSelection] as IComponent));
-            }else if(oldSelection != -1 && Components[oldSelection] is InputController)
+                parent.OnRequestFocus(this, new ComponentEventArgs(_new));
+                parent.OnRequestRedraw(this, new RedrawEventArgs(_new));
+            }
+            else if(Components[selectedIndex] is InputController new_cont)
             {
-                (Components[oldSelection] as InputController).HasFocus = false;
+                // Focus controller if it's a controller
+                new_cont.HasFocus = true;
             }
 
+            // If the old selection is valid,
+            if (oldSelection != -1)
+            {
+                if (Components[oldSelection] is IComponent old)
+                {
+                    // Redraw it if it's a component
+                    parent.OnRequestRedraw(this, new RedrawEventArgs(old));
+                }
+                else if (Components[oldSelection] is InputController old_cont)
+                {
+                    // Unfocus it if it's a controller
+                    old_cont.HasFocus = false;
+                }
+            }
         }
 
+        public int GetSelectedIndex()
+        {
+            return selectedIndex;
+        }
+
+        /// <summary>
+        /// Adds a component to this controller
+        /// </summary>
+        /// <param name="component">The component</param>
         public void Add(IComponent component)
         {
             Components.Add(component);
         }
 
+        /// <summary>
+        /// Adds a controller to this controller (should only be one level of
+        /// nesting).
+        /// </summary>
+        /// <param name="controller">The controller</param>
         public void Add(InputController controller)
         {
             Components.Add(controller);
@@ -491,6 +579,11 @@ namespace SchedulingUI
             controller.RequestFocus += OnRequestFocus;
         }
 
+        /// <summary>
+        /// Requests focus for a specific controller.
+        /// </summary>
+        /// <param name="sender">The sender</param>
+        /// <param name="args">The controller</param>
         public void OnRequestFocus(object sender, ControllerEventArgs args)
         {
             if (RequestFocus != null)
@@ -503,11 +596,25 @@ namespace SchedulingUI
         {
             return (a % n + n) % n;
         }
-        
+
+        /// <summary>
+        /// Gets an enumerator of all components.
+        /// </summary>
+        /// <returns>The enumerator</returns>
+        public IEnumerator GetEnumerator()
+        {
+            return Components.GetEnumerator();
+        }
     }
 
+    /// <summary>
+    /// A container which only shows one child at a time.
+    /// </summary>
     public class TabbedPane : Container
 	{
+        /// <summary>
+        /// The currently selected child.
+        /// </summary>
 		public int SelectedIndex { get; private set; }
 
 		public void SetSelectedIndex(int index)
@@ -519,6 +626,10 @@ namespace SchedulingUI
 
 		#region implemented abstract members of Container
 
+        /// <summary>
+        /// Only sets the selected component to visible.
+        /// All children completely fill the container.
+        /// </summary>
 		protected override void DoLayoutImpl ()
 		{
             for (int i = 0; i < Components.Count; i++)
@@ -543,13 +654,35 @@ namespace SchedulingUI
 
 	}
 
+    /// <summary>
+    /// An event args which contains an InputController
+    /// </summary>
     public class ControllerEventArgs : EventArgs
     {
+        /// <summary>
+        /// The controller.
+        /// </summary>
         public InputController Controller { get; private set; }
 
         public ControllerEventArgs(InputController controller)
         {
             Controller = controller;
+        }
+    }
+
+    /// <summary>
+    /// An event args which contains an object.
+    /// </summary>
+    public class ObjectEventArgs : EventArgs
+    {
+        /// <summary>
+        /// The object.
+        /// </summary>
+        public object Value { get; private set; }
+
+        public ObjectEventArgs(object Value = null)
+        {
+            this.Value = Value;
         }
     }
 

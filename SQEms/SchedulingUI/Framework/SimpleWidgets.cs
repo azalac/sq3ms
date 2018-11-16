@@ -6,131 +6,35 @@ using System.Linq;
 
 namespace SchedulingUI
 {
-    public class Box : Component
-    {
-
-        // Unicode Characters
-        private const int UTOP_LEFT = 0x250F,
-        UTOP_RIGHT = 0x2513,
-        UBOTTOM_LEFT = 0x2517,
-        UBOTTOM_RIGHT = 0x251B,
-        UVERTICAL = 0x2503,
-        UHORIZONTAL = 0x2501;
-
-		// Ascii Characters
-        private const int ACORNER = '+',
-            AVERTICAL = '|',
-            AHORIZONTAL = '-';
-
-        #region IComponent implementation
-
-        public override void Draw(IConsole buffer)
-        {
-			// true if the console supports complex multi-byte characters
-			bool cplx = buffer.SupportsComplex;
-
-			// determine which characters to use
-			int TOP_LEFT = cplx ? UTOP_LEFT : ACORNER;
-			int TOP_RIGHT = cplx ? UTOP_RIGHT : ACORNER;
-			int BOTTOM_LEFT = cplx ? UBOTTOM_LEFT : ACORNER;
-			int BOTTOM_RIGHT = cplx ? UBOTTOM_RIGHT : ACORNER;
-			int VERTICAL = cplx ? UVERTICAL : AVERTICAL;
-			int HORIZONTAL = cplx ? UHORIZONTAL : AHORIZONTAL;
-
-            buffer.SetCursorPosition(Left, Top);
-
-            for (int x = Left; x < Left + Width; x++)
-            {
-                if (x == Left)
-                {
-                    buffer.PutCharacter(TOP_LEFT);
-                }
-                else if (x == Left + Width - 1)
-                {
-                    buffer.PutCharacter(TOP_RIGHT);
-                }
-                else
-                {
-                    buffer.PutCharacter(HORIZONTAL);
-                }
-            }
-
-            for (int y = Top + 1; y < Top + Height - 1; y++)
-            {
-                buffer.PutCharacter(Left, y, VERTICAL);
-                buffer.PutCharacter(Left + Width - 1, y, VERTICAL);
-            }
-
-            Console.SetCursorPosition(Left, Top + Height - 1);
-
-            for (int x = Left; x < Left + Width; x++)
-            {
-                if (x == Left)
-                {
-                    buffer.PutCharacter(BOTTOM_LEFT);
-                }
-                else if (x == Left + Width - 1)
-                {
-                    buffer.PutCharacter(BOTTOM_RIGHT);
-                }
-                else
-                {
-                    buffer.PutCharacter(HORIZONTAL);
-                }
-            }
-        }
-
-        #endregion
-
-        public override string ToString()
-        {
-            return string.Format("Box[Top={0}, Left={1}, Width={2}, Height={3}]", Top, Left, Width, Height);
-        }
-
-    }
-    
+    /// <summary>
+    /// A component which shows text. Handles newlines properly.
+    /// </summary>
 	public class Label : Component
 	{
+        /// <summary>
+        /// The text to draw.
+        /// </summary>
 		public string Text { get; set; }
+
+        /// <summary>
+        /// If the text should be centered.
+        /// </summary>
 		public bool Center { get; set; }
 
+        /// <summary>
+        /// If the text should go to a newline.
+        /// </summary>
 		public bool DoWrapping { get; set; }
 
+        /// <summary>
+        /// Creates a new label
+        /// </summary>
+        /// <param name="Text">Optional text parameter</param>
 		public Label(string Text = "")
 		{
             this.Text = Text;
 		}
-        
-        /// <summary>
-        /// Gets the relative position for a character's position.
-		/// Does not account for the contents of the text.
-        /// </summary>
-        /// <param name="i">The character's index</param>
-        /// <returns>The relative position</returns>
-		public Tuple<int, int> GetCharPos(int i)
-		{
-			// if there's no more room for the (non-wrapped) text
-			// or if the index is invalid, return null
-			if (i >= Width && !DoWrapping)
-			{
-				return null;
-			}
-
-			// if the text should be centered, and there's room, determine the offset
-			int x_offset = 0;
-			if (Center && Text.Length < Width)
-			{
-				x_offset = Width / 2 - Text.Length / 2;
-			}
-
-
-			// calculate the relative position
-			int x = i % Width + x_offset;
-			int y = i / Width;
-
-			return new Tuple<int, int> (x, y);
-		}
-			
+        	
 		/// <summary>
 		/// Gets the relative position for every character.
 		/// Accounts for the contents of the text.
@@ -186,6 +90,14 @@ namespace SchedulingUI
 			yield break;
 		}
 
+        /// <summary>
+        /// Splits this label's text into chunks, with length determined by 
+        /// newlines or the maximum width of the component.
+        /// </summary>
+        /// <remarks>
+        /// The x and y positions are relative to the top-left of the label.
+        /// </remarks>
+        /// <returns>An IEnumerable with the x&y positions and the chunk</returns>
         public IEnumerable<Tuple<int, int, string>> GetChunks()
         {
             LinkedList<string> lines = new LinkedList<string>(Text.Split('\n'));
@@ -219,6 +131,16 @@ namespace SchedulingUI
             yield break;
         }
 
+        /// <summary>
+        /// Searches this label's text for a newline, or the max width in order
+        /// to get the x offset for a chunk. Only used when centering.
+        /// </summary>
+        /// <remarks>
+        /// Assumes the current index is the start of a line.
+        /// </remarks>
+        /// <param name="i">The current index</param>
+        /// <param name="max_length">The maximum length to search.</param>
+        /// <returns>The x offset of the current line</returns>
         private int GetXOffset(int i, int max_length)
         {
             for(int idelta = 0; idelta < max_length; idelta++)
@@ -240,22 +162,28 @@ namespace SchedulingUI
         /// <returns>The rectangle.</returns>
 		public Rectangle GetTextArea()
 		{
-			IEnumerable<Tuple<int, int, int>> positions = GetRealCharPositions ();
+			IEnumerable<Tuple<int, int, string>> chunks = GetChunks();
 			
-			if (positions.Count() == 0)
+			if (chunks.Count() == 0)
 			{
 				return new Rectangle (Left, Top, 0, 0);
 			}
 
-			Tuple<int, int, int> TopLeft = positions.First();
-			Tuple<int, int, int> BottomRight = positions.Last();
+			Tuple<int, int, string> TopLeft = chunks.First();
+			Tuple<int, int, string> BottomRight = chunks.Last();
 
-			return Rectangle.BetweenCoords (TopLeft.Item2 + Left, TopLeft.Item3 + Top,
-			                               BottomRight.Item2 + Left, BottomRight.Item3 + Top);
+            // Gets the top left position and the bottom right position, accounting for the string length
+			return Rectangle.BetweenCoords (TopLeft.Item1 + Left, TopLeft.Item1 + Top, BottomRight.Item1 + Left,
+                                           BottomRight.Item1 + Top + BottomRight.Item3.Length);
 		}
 
 		#region implemented abstract members of Component
 
+        /// <summary>
+        /// Gets all chunks and draws them. Does nothing if the component has
+        /// no width or text.
+        /// </summary>
+        /// <param name="buffer">The buffer to draw to</param>
 		public override void Draw (IConsole buffer)
 		{
 			// if there's no width, or there's no text, do nothing
@@ -274,6 +202,9 @@ namespace SchedulingUI
 
 	}
 
+    /// <summary>
+    /// Lays out children in an evenly-spaced grid.
+    /// </summary>
     public class GridContainer : Container
     {
 		/// <summary>
@@ -382,6 +313,10 @@ namespace SchedulingUI
         
     }
 
+    /// <summary>
+    /// Lays out children in a vertical or horizontal line, with size determined
+    /// by their preferred height or width.
+    /// </summary>
     public class FlowContainer : Container
 	{
 		/// <summary>
@@ -389,6 +324,9 @@ namespace SchedulingUI
 		/// </summary>
 		public bool DrawBorders { get; set; }
 
+        /// <summary>
+        /// If this container should lay out children vertically or horizontally.
+        /// </summary>
         public bool Vertical { get; set; }
 		
 		private LineDrawer lines = LineDrawer.FromGlobal();
@@ -528,12 +466,25 @@ namespace SchedulingUI
 		#endregion
     }
 
+    /// <summary>
+    /// Lays out two children vertically or horizontally. Only respects the first's
+    /// preferred size, while the second gets the remaining area.
+    /// </summary>
     public class BinaryContainer : Container
     {
+        /// <summary>
+        /// If this container should lay out children vertically or horizontally.
+        /// </summary>
         public bool Vertical { get; set; }
 
+        /// <summary>
+        /// The first component (must be a child of the container)
+        /// </summary>
         public IComponent First { get; set; }
 
+        /// <summary>
+        /// The second component (must be a child of the container)
+        /// </summary>
         public IComponent Second { get; set; }
 
         protected override void DoLayoutImpl()
@@ -582,19 +533,36 @@ namespace SchedulingUI
         }
     }
 
-    public enum InterfaceEvent
+    /// <summary>
+    /// An enum which represents the events a RootContainer can handle.
+    /// </summary>
+    enum InterfaceEvent
 	{
 		REDRAW,
 		SET_FOCUS,
         SET_CONTROLLER
 	}
 
+    /// <summary>
+    /// The top level container. Has a reference to the console, for easy drawing.
+    /// Manages all focus-related properties, and has an internal thread for its
+    /// events.
+    /// </summary>
     public class RootContainer : Container
     {
+        /// <summary>
+        /// The referenced console.
+        /// </summary>
         public IConsole Console { get; private set; }
 
+        /// <summary>
+        /// The currently focused component.
+        /// </summary>
 		public Component FocusedComponent { get; private set; }
 
+        /// <summary>
+        /// The currently focused controller.
+        /// </summary>
         public InputController FocusedController { get; private set; }
         
 		private Thread EventThread;
@@ -685,11 +653,20 @@ namespace SchedulingUI
             }
         }
 
+        /// <summary>
+        /// Sets a specific controller to be focused.
+        /// </summary>
+        /// <param name="sender">The sender</param>
+        /// <param name="args">The controller to be focused</param>
         public void OnRequestController(object sender, ControllerEventArgs args)
         {
             Events.Add(new Tuple<InterfaceEvent, object, EventArgs>(InterfaceEvent.SET_CONTROLLER, sender, args));
         }
 
+        /// <summary>
+        /// Registers a top-level controller so it can send RequestFocus events.
+        /// </summary>
+        /// <param name="controller"></param>
         public void RegisterController(InputController controller)
         {
             controller.RequestFocus += CreateHandler<ControllerEventArgs>(InterfaceEvent.SET_CONTROLLER);
@@ -711,16 +688,30 @@ namespace SchedulingUI
             this.Console.SetCursorPosition(0, 0);
 		}
 
+        /// <summary>
+        /// Redraws entire container.
+        /// </summary>
         public void Draw()
         {
             Draw(Console);
         }
 
+        /// <summary>
+        /// Redraws specific area
+        /// </summary>
+        /// <param name="Left">The X position</param>
+        /// <param name="Top">The Y position</param>
+        /// <param name="Width">The width</param>
+        /// <param name="Height">The height</param>
 		public void Draw(int Left, int Top, int Width, int Height)
 		{
 			Draw (Console.CreateSubconsole (Left, Top, Width, Height));
 		}
 
+        /// <summary>
+        /// Redraws specific component
+        /// </summary>
+        /// <param name="component">The component to redraw</param>
 		public void Draw(IComponent component)
 		{
 			Draw (component.Left, component.Top, component.Width, component.Height);
@@ -757,6 +748,10 @@ namespace SchedulingUI
 
         #endregion
 
+        /// <summary>
+        /// draws all components, and redraws the lines.
+        /// </summary>
+        /// <param name="buffer"></param>
         public override void Draw(IConsole buffer)
         {
             base.Draw(buffer);
@@ -772,8 +767,14 @@ namespace SchedulingUI
 
     }
 
+    /// <summary>
+    /// An event args which contains a console key.
+    /// </summary>
 	public class ConsoleKeyEventArgs : EventArgs
 	{
+        /// <summary>
+        /// The key that was pressed.
+        /// </summary>
 		public ConsoleKeyInfo Key { get; private set; }
 
 		public ConsoleKeyEventArgs(ConsoleKeyInfo key)

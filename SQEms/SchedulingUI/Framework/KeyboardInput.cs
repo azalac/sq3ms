@@ -3,6 +3,11 @@ using System.Threading;
 
 namespace SchedulingUI
 {
+    /// <summary>
+    /// This class handles all keyboard input, and broadcasts it through the
+    /// KeyPress event. It has an internal thread which must be started before
+    /// it will work.
+    /// </summary>
 	public class KeyboardInput
 	{
         /// <summary>
@@ -14,10 +19,17 @@ namespace SchedulingUI
         /// </summary>
         private static long KEY_DELAY = 5;
 
-		public RootContainer Container { get; private set; }
+        private RootContainer Container;
 
+        /// <summary>
+        /// The internal thread. public reference is so that outer classes can
+        /// manipulate the thread as needed (join, interrupt, etc).
+        /// </summary>
 		public Thread InternalThread { get; private set;}
 
+        /// <summary>
+        /// The key which stops the internal thread.
+        /// </summary>
 		public ConsoleKey ExitKey { get; set; }
 
 		private bool running = true;
@@ -31,6 +43,9 @@ namespace SchedulingUI
 			Container = root;
 		}
 
+        /// <summary>
+        /// Initializes an starts the internal thread
+        /// </summary>
 		public void StartThread()
 		{
 			InternalThread = new Thread (new ThreadStart (this.Run)) {
@@ -41,6 +56,9 @@ namespace SchedulingUI
 			InternalThread.Start ();
 		}
 
+        /// <summary>
+        /// Shuts down the internal thread. Only effective once a key is pressed.
+        /// </summary>
 		public void Shutdown()
 		{
 			running = false;
@@ -56,7 +74,9 @@ namespace SchedulingUI
 			{
 
 				ConsoleKeyInfo key = Console.ReadKey (true);
-                
+
+                System.Diagnostics.Debug.WriteLine("Handling key: " + key);
+
 				if (Container != null)
 				{
                     double current_millis = (DateTime.UtcNow - UNIX_EPOCH).TotalMilliseconds;
