@@ -769,10 +769,9 @@ namespace SchedulingUI
             if (ValidPosition(CursorX, CursorY))
             {
                 parent.PutCharacter(c);
+                NextPosition();
             }
-
-            UpdatePosition(CursorX, CursorY);
-
+            
 		}
 
 		public void PutCharacter (int codepoint)
@@ -780,10 +779,9 @@ namespace SchedulingUI
             if (ValidPosition(CursorX, CursorY))
             {
                 parent.PutCharacter(codepoint);
+                NextPosition();
             }
-
-            UpdatePosition(CursorX, CursorY);
-
+            
         }
 
         public void PutCharacter (int x, int y, char c)
@@ -840,7 +838,7 @@ namespace SchedulingUI
                 length = s.Length;
             }
 
-            while (i < length)
+            while (i2 < length)
             {
                 while (!ValidPosition((i + offset) % width, (i + offset) / width) && i < length)
                 {
@@ -854,7 +852,7 @@ namespace SchedulingUI
                     i2++;
                 }
 
-                PutString(i % width, i / width, s.Substring(i), i2 - i);
+                parent.PutString((i + offset) % width, (i + offset) / width, s.Substring(i), i2 - i);
             }
 
             UpdatePosition((i2 + offset) % width, (i2 + offset) / width);
@@ -882,7 +880,7 @@ namespace SchedulingUI
         {
             CursorX++;
 
-            if (CursorX >= parent.BufferWidth)
+            if (CursorX >= BufferWidth)
             {
                 CursorX = 0;
                 CursorY++;
