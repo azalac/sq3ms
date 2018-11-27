@@ -539,8 +539,7 @@ namespace SchedulingUI
     enum InterfaceEvent
 	{
 		REDRAW,
-		SET_FOCUS,
-        SET_CONTROLLER
+		SET_FOCUS
 	}
 
     /// <summary>
@@ -606,9 +605,6 @@ namespace SchedulingUI
                     case InterfaceEvent.SET_FOCUS:
                         SetFocus(evt.Item2, evt.Item3 as ComponentEventArgs);
                         break;
-                    case InterfaceEvent.SET_CONTROLLER:
-                        SetController(evt.Item2, evt.Item3 as ControllerEventArgs);
-                        break;
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
@@ -637,41 +633,7 @@ namespace SchedulingUI
 				FocusedComponent.HasFocus = true;
 			}
 		}
-
-        private void SetController(object sender, ControllerEventArgs controller)
-        {
-            if(FocusedController != null)
-            {
-                FocusedController.HasFocus = false;
-            }
-
-            FocusedController = controller.Controller;
-
-            if(FocusedController != null)
-            {
-                FocusedController.HasFocus = true;
-            }
-        }
-
-        /// <summary>
-        /// Sets a specific controller to be focused.
-        /// </summary>
-        /// <param name="sender">The sender</param>
-        /// <param name="args">The controller to be focused</param>
-        public void OnRequestController(object sender, ControllerEventArgs args)
-        {
-            Events.Add(new Tuple<InterfaceEvent, object, EventArgs>(InterfaceEvent.SET_CONTROLLER, sender, args));
-        }
-
-        /// <summary>
-        /// Registers a top-level controller so it can send RequestFocus events.
-        /// </summary>
-        /// <param name="controller"></param>
-        public void RegisterController(InputController controller)
-        {
-            controller.RequestFocus += CreateHandler<ControllerEventArgs>(InterfaceEvent.SET_CONTROLLER);
-        }
-
+        
 		private void Redraw(object sender, RedrawEventArgs e)
 		{
 			// if there's an area to redraw, redraw it
