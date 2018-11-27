@@ -91,7 +91,7 @@ namespace SchedulingUI
         /// <summary>
         /// Gets the current ColorScheme
         /// </summary>
-        private static ColorScheme Current {
+        public static ColorScheme Current {
             get
             {
                 return schemes[selectedScheme];
