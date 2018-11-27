@@ -377,7 +377,10 @@ namespace SchedulingUI
         /// <param name="border">The componen'ts border</param>
 		public void Set(IComponent component, uint border)
 		{
-			component_borders [component] = border;
+            lock (component_borders)
+            {
+                component_borders[component] = border;
+            }
 		}
 
         /// <summary>
@@ -387,8 +390,11 @@ namespace SchedulingUI
         /// <param name="rect">The rectangle to draw</param>
         /// <param name="border">The rectangle's border</param>
 		public void Set(int id, Rectangle rect, uint border)
-		{
-			rect_borders [id] = new Tuple<Rectangle, uint>(rect, border);
+        {
+            lock (rect_borders)
+            {
+                rect_borders[id] = new Tuple<Rectangle, uint>(rect, border);
+            }
 		}
 
         /// <summary>
@@ -403,15 +409,21 @@ namespace SchedulingUI
 				CharBuffer = new uint[buffer.BufferWidth, buffer.BufferHeight];
 			}
 
-			foreach (IComponent c in component_borders.Keys)
-			{
-				PutRectangle (new Rectangle (c, 1), component_borders [c]);
-			}
+            lock (component_borders)
+            {
+                foreach (IComponent c in component_borders.Keys)
+                {
+                    PutRectangle(new Rectangle(c, 1), component_borders[c]);
+                }
+            }
 
-			foreach (Tuple<Rectangle, uint> t in rect_borders.Values)
-			{
-				PutRectangle(t.Item1, t.Item2);
-			}
+            lock (rect_borders)
+            {
+                foreach (Tuple<Rectangle, uint> t in rect_borders.Values)
+                {
+                    PutRectangle(t.Item1, t.Item2);
+                }
+            }
 
 		}
 
