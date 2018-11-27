@@ -437,41 +437,24 @@ namespace SchedulingUI
                 parent.KeyPress += HandleKeypress;
             }
         }
-
-        public bool HasFocus {
-            get
-            {
-                return hasFocus;
-            }
-            set
-            {
-                // TODO components need to be unfocussed once this controller is unfocussed
-                hasFocus = value;
-            }
-        }
-
+        
         /// <summary>
         /// If this input should use Up+Down arrows (false) or Left+Right arrows (true).
         /// </summary>
         public bool Horizontal { get; set; }
-
-        /// <summary>
-        /// An event which requests a controller be focused
-        /// </summary>
-        public event EventHandler<ControllerEventArgs> RequestFocus;
-
+        
         /// <summary>
         /// Invoked whenever the selection changes.
         /// </summary>
         public event EventHandler<ObjectEventArgs> SelectionChange;
 
         private readonly List<object> Components = new List<object>();
-
-        private bool hasFocus = false;
-
+        
         private Component parent;
 
-        private int selectedIndex = -1;
+        private int selectedIndex = 0;
+
+        private bool active = false;
 
         /// <summary>
         /// The keys which control all inputs. Numpad arrows are used to
@@ -484,7 +467,7 @@ namespace SchedulingUI
 
         private void HandleKeypress(object sender, ConsoleKeyEventArgs args)
         {
-            if (!Parent.Visible || !HasFocus)
+            if (!Parent.Visible || !active)
             {
                 return;
             }
@@ -500,7 +483,6 @@ namespace SchedulingUI
             {
                 SetSelectedIndex(Mod(selectedIndex + 1, Components.Count));
             }
-            
         }
 
         /// <summary>
@@ -510,47 +492,27 @@ namespace SchedulingUI
         public void SetSelectedIndex(int newSelection)
         {
             // do nothing if there are no components
-            if(Components.Count == 0)
+            if(Components.Count == 0 || newSelection == -1)
             {
                 selectedIndex = -1;
                 return;
             }
-            
+
+            System.Diagnostics.Debug.WriteLine("New Selection: " + newSelection);
+
             int oldSelection = selectedIndex;
             selectedIndex = newSelection;
 
+            // Update selection focus
+            SetActive(oldSelection, false);
+            SetActive(selectedIndex, true);
+
             // Try to invoke SelectionChange
-            if(SelectionChange != null)
+            if (SelectionChange != null)
             {
                 SelectionChange(this, new ObjectEventArgs(Components[selectedIndex]));
             }
 
-            // Redraw and Focus new component if it's a component
-            if (Components[selectedIndex] is IComponent _new)
-            {
-                parent.OnRequestFocus(this, new ComponentEventArgs(_new));
-                parent.OnRequestRedraw(this, new RedrawEventArgs(_new));
-            }
-            else if(Components[selectedIndex] is InputController new_cont)
-            {
-                // Focus controller if it's a controller
-                new_cont.HasFocus = true;
-            }
-
-            // If the old selection is valid,
-            if (oldSelection != -1)
-            {
-                if (Components[oldSelection] is IComponent old)
-                {
-                    // Redraw it if it's a component
-                    parent.OnRequestRedraw(this, new RedrawEventArgs(old));
-                }
-                else if (Components[oldSelection] is InputController old_cont)
-                {
-                    // Unfocus it if it's a controller
-                    old_cont.HasFocus = false;
-                }
-            }
         }
 
         public int GetSelectedIndex()
@@ -575,20 +537,61 @@ namespace SchedulingUI
         public void Add(InputController controller)
         {
             Components.Add(controller);
+        }
+        
+        /// <summary>
+        /// Activates this controller, and focuses its selected component.
+        /// </summary>
+        public void Activate()
+        {
+            active = true;
 
-            controller.RequestFocus += OnRequestFocus;
+            SetActive(selectedIndex, true);
         }
 
         /// <summary>
-        /// Requests focus for a specific controller.
+        /// Deactivates this controller, and unfocuses its selected component.
         /// </summary>
-        /// <param name="sender">The sender</param>
-        /// <param name="args">The controller</param>
-        public void OnRequestFocus(object sender, ControllerEventArgs args)
+        public void Deactivate()
         {
-            if (RequestFocus != null)
+            active = false;
+
+            SetActive(selectedIndex, false);
+        }
+
+        private void SetActive(int component, bool active)
+        {
+            if (component >= 0 && component < Components.Count)
             {
-                RequestFocus(sender, args);
+                if (active)
+                {
+                    if (Components[component] is IComponent c)
+                    {
+                        // Redraw & focus it if it's a component
+                        parent.OnRequestFocus(this, new ComponentEventArgs(c));
+                        parent.OnRequestRedraw(this, new RedrawEventArgs(c));
+                    }
+                    else if (Components[component] is InputController cont)
+                    {
+                        // activate if it's a controller
+                        cont.Activate();
+                    }
+
+                }
+                else
+                {
+                    if (Components[component] is IComponent c)
+                    {
+                        // Redraw & unfocus it if it's a component
+                        parent.OnRequestFocus(this, new ComponentEventArgs(null));
+                        parent.OnRequestRedraw(this, new RedrawEventArgs(c));
+                    }
+                    else if (Components[component] is InputController cont)
+                    {
+                        // deactivate it if it's a controller
+                        cont.Deactivate();
+                    }
+                }
             }
         }
 
@@ -624,13 +627,20 @@ namespace SchedulingUI
 			OnRequestRedraw(this, new RedrawEventArgs(this));
 		}
 
-		#region implemented abstract members of Container
+        public void SetSelected(IComponent c)
+        {
+            SelectedIndex = Components.IndexOf(c);
+            DoLayout();
+            OnRequestRedraw(this, new RedrawEventArgs(this));
+        }
+
+        #region implemented abstract members of Container
 
         /// <summary>
         /// Only sets the selected component to visible.
         /// All children completely fill the container.
         /// </summary>
-		protected override void DoLayoutImpl ()
+        protected override void DoLayoutImpl ()
 		{
             for (int i = 0; i < Components.Count; i++)
             {
