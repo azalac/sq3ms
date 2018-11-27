@@ -75,7 +75,7 @@ namespace SchedulingUI
 
 				ConsoleKeyInfo key = Console.ReadKey (true);
 
-                System.Diagnostics.Debug.WriteLine("Handling key: " + key);
+                System.Diagnostics.Debug.WriteLine("Handling key: " + key.Key);
 
 				if (Container != null)
 				{
