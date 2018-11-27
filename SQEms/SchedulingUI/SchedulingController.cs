@@ -43,7 +43,7 @@ namespace SchedulingUI
     /// [+1 Button] | [+2 Button] | [+3 Button]
     /// [Reset Button] | [Date Label] | [Confirm Button]
     /// </remarks>
-    public class TimeSlotSelectionController : GridContainer
+    public class TimeSlotSelectionController : GridContainer, IInterfaceContent
     {
         private readonly InputController controller = new InputController();
 
@@ -120,6 +120,8 @@ namespace SchedulingUI
 
         private AptTimeSlot aptTimeSlot = new AptTimeSlot(0, 0, 0);
 
+        public string Name => "TimeSlot-Selector";
+
         public TimeSlotSelectionController()
         {
             CountX = 3;
@@ -162,8 +164,13 @@ namespace SchedulingUI
             controller.Add(AmountSelector);
             controller.Add(ControlSelector);
 
-            controller.SelectionChange += UpdateGrid;
+            controller.SetSelectedIndex(0);
+            SpanSelector.SetSelectedIndex(0);
+            AmountSelector.SetSelectedIndex(0);
+            ControlSelector.SetSelectedIndex(1);
+            DateSelector.SetSelectedIndex(0);
 
+            controller.SelectionChange += UpdateGrid;
         }
 
         private void UpdateGrid(object sender, ObjectEventArgs e)
@@ -197,23 +204,7 @@ namespace SchedulingUI
                 component.Background = ColorCategory.HIGHLIGHT_BG_2;
             }
         }
-
-        public void Init(RootContainer root)
-        {
-            root.RegisterController(controller);
-
-            controller.SetSelectedIndex(0);
-            SpanSelector.SetSelectedIndex(0);
-            AmountSelector.SetSelectedIndex(0);
-            ControlSelector.SetSelectedIndex(1);
-            DateSelector.SetSelectedIndex(0);
-
-            root.OnRequestController(this, new ControllerEventArgs(controller));
-            root.OnRequestFocus(this, new ComponentEventArgs(WeekInput));
-            root.OnRequestRedraw(this, new RedrawEventArgs(this));
-            
-        }
-
+        
         /// <summary>
         /// Creates an empty component which is used for spacing.
         /// </summary>
@@ -248,5 +239,19 @@ namespace SchedulingUI
             base.Draw(buffer);
         }
 
+        public void Initialize(RootContainer root)
+        {
+
+        }
+
+        public void Activate()
+        {
+            controller.Activate();
+        }
+
+        public void Deactivate()
+        {
+            controller.Deactivate();
+        }
     }
 }
