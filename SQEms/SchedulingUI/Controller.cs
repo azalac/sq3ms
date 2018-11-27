@@ -1,6 +1,8 @@
 using Definitions;
 using Support;
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace SchedulingUI
 {
@@ -17,7 +19,86 @@ namespace SchedulingUI
             Value = initial;
         }
     }
-    
+
+    /// <summary>
+    /// An event args which references an object
+    /// </summary>
+    /// <typeparam name="T">The type to reference</typeparam>
+    public class ReferenceArgs<T> : EventArgs
+    {
+        public T Value;
+
+        public ReferenceArgs(T initial = default(T))
+        {
+            Value = initial;
+        }
+    }
+
+    /// <summary>
+    /// Controls multiple <see cref="IInterfaceContent"/>s and handles their
+    /// activation.
+    /// </summary>
+    public class InterfaceContentController
+    {
+        private Dictionary<string, IInterfaceContent> content = new Dictionary<string, IInterfaceContent>();
+
+        private IInterfaceContent last = null;
+
+        public string Default { get; set; }
+
+        public event EventHandler<ReferenceArgs<IInterfaceContent>> ContentChanged;
+
+        public void Add(IInterfaceContent c)
+        {
+            content[c.Name] = c;
+        }
+
+        public void Activate(string name)
+        {
+            if(!content.ContainsKey(name))
+            {
+                throw new ArgumentException("Interface Content '" + name + "' not registered");
+            }
+
+            if(last != null)
+            {
+                last.Deactivate();
+            }
+
+            last = content[name];
+
+            last.Activate();
+
+            if (ContentChanged != null)
+            {
+                ContentChanged(this, new ReferenceArgs<IInterfaceContent>(last));
+            }
+        }
+
+        public void Deactivate()
+        {
+            if(last != null)
+            {
+                last.Deactivate();
+                last = null;
+            }
+
+            if (Default != null)
+            {
+                Activate(Default);
+            }
+            else
+            {
+                if (ContentChanged != null)
+                {
+                    ContentChanged(this, new ReferenceArgs<IInterfaceContent>(null));
+                }
+            }
+
+        }
+
+    }
+
     /// <summary>
     /// The main class for the interface controllers
     /// </summary>
@@ -31,11 +112,11 @@ namespace SchedulingUI
 
         private TabbedPane Content = new TabbedPane();
 
-		private Menu menu;
+        private InterfaceContentController ContentController = new InterfaceContentController();
 
-		private Calendar calendar;
-        
-        private TimeSlotSelectionController TimeSlotSelector = new TimeSlotSelectionController();
+        private DefaultContent default_content;
+
+        private TimeSlotSelectionController TimeSlotContent;
 
         /// <summary>
         /// Change this to be default false to see the TimeSlotSelector prototpy.
@@ -44,6 +125,24 @@ namespace SchedulingUI
 
         public InterfaceStart(IConsole buffer)
         {
+            InitializeRoot(buffer);
+
+            InitializeContent();
+
+            ContentController.Activate(ContentController.Default);
+
+            root.DoLayout();
+
+            root.Draw();
+            
+            input.StartThread();
+        }
+        
+        /// <summary>
+        /// Initializes the root components.
+        /// </summary>
+        private void InitializeRoot(IConsole buffer)
+        {
             root = new RootContainer(buffer);
 
             input = new KeyboardInput(root)
@@ -51,68 +150,47 @@ namespace SchedulingUI
                 ExitKey = ConsoleKey.Escape
             };
 
-            header = new WeekHeader();
-
-			menu = new Menu ();
-
-			calendar = new Calendar();
-
-            // Contains the week header and the content
-            BinaryContainer binaryContainer1 = new BinaryContainer()
-			{
-				Vertical = true
-			};
-
-            // Initial Content - Contains the menu and the calendar
-            BinaryContainer binaryContainer2 = new BinaryContainer()
-			{
-				Vertical = false,
-				PreferredHeight = 20
-			};
-
-            // SET UP CONTAINERS
-
-            binaryContainer2.Add(menu, calendar);
-
-            binaryContainer2.First = menu;
-            binaryContainer2.Second = calendar;
-
-            Content.Add(binaryContainer2);
-            Content.Add(TimeSlotSelector);
-
-            binaryContainer1.Add (header, Content);
-
-            binaryContainer1.First = header;
-            binaryContainer1.Second = Content;
-
-            root.Add(binaryContainer1);
-            
-            // FINISHED CONTAINER SET UP
-
-
-
-            calendar.CurrentWeek = header.Week;
-
-            // change this to false to see the real initial screen
-            if(!OnHomeScreen.Value)
+            header = new WeekHeader(OnHomeScreen);
+            BinaryContainer root_container = new BinaryContainer()
             {
-                Content.SetSelectedIndex(1);
-                TimeSlotSelector.Init(root);
-            }
-            else
-            {
-                Content.SetSelectedIndex(0);
-                menu.Init(root);
-            }
+                Vertical = true
+            };
 
-            root.DoLayout();
+            root_container.Add(header, Content);
 
-            root.Draw();
-            
-            input.StartThread();
-            
+            root_container.First = header;
+            root_container.Second = Content;
+
+            root.Add(root_container);
+
         }
-        
+
+        /// <summary>
+        /// Initializes the content components.
+        /// </summary>
+        private void InitializeContent()
+        {
+            default_content = new DefaultContent(header.Week);
+
+            TimeSlotContent = new TimeSlotSelectionController();
+
+            ContentController.Add(default_content);
+            ContentController.Add(TimeSlotContent);
+
+            ContentController.ContentChanged += (object sender, ReferenceArgs<IInterfaceContent> args) =>
+            {
+                if(args.Value is IComponent c)
+                {
+                    Content.SetSelected(c);
+                }
+            };
+            
+            ContentController.Default = default_content.Name;
+
+            Content.Add(default_content);
+            Content.Add(TimeSlotContent);
+        }
+
         public void WaitUntilExit()
         {
             input.InternalThread.Join();
@@ -132,6 +210,27 @@ namespace SchedulingUI
 
     }
     
+    public interface IInterfaceContent
+    {
+        string Name { get; }
+
+        /// <summary>
+        /// Initializes this interface content.
+        /// </summary>
+        /// <param name="root">The root container</param>
+        void Initialize(RootContainer root);
+
+        /// <summary>
+        /// Activates this interface content.
+        /// </summary>
+        void Activate();
+
+        /// <summary>
+        /// Deactivates this interface content.
+        /// </summary>
+        void Deactivate();
+    }
+
     /// <summary>
     /// The week header at the top of the console.
     /// </summary>
@@ -167,7 +266,7 @@ namespace SchedulingUI
         };
 
         private Label[] day_labels = new Label[7];
-
+        
         private static readonly string[] day_names = new string[]{ "SUN", "MON", "TUE", "WED", "THUR", "FRI", "SAT" };
 
         /// <summary>
@@ -206,6 +305,7 @@ namespace SchedulingUI
 
             KeyPress += HeaderWeek_Keypress;
 
+            update_label_text();
         }
 
         private void HeaderWeek_Keypress(object sender, ConsoleKeyEventArgs args)
@@ -214,103 +314,155 @@ namespace SchedulingUI
             {
                 return;
             }
-
-            bool needsRedraw = false;
-
+            
             if (args.Key.Key == ConsoleKey.I)
             {
                 Week.Value--;
-                needsRedraw = true;
+                update_label_text();
             }
             else if (args.Key.Key == ConsoleKey.K)
             {
                 Week.Value++;
-                needsRedraw = true;
+                update_label_text();
             }
+            
+        }
 
-            if (needsRedraw)
+        private void update_label_text()
+        {
+            nav_instructions.Text = string.Format("I /\\\nMONTH {0}\nK \\/", Week.Value);
+
+            for (int i = 0; i < CalendarInfo.WEEK_LENGTH; i++)
             {
-                nav_instructions.Text = string.Format("I /\\\nMONTH {0}\nK \\/", Week.Value);
+                int? count = Scheduler?.AppointmentCount(Week.Value, i);
 
+                string old_text = day_labels[i].Text;
 
-                for (int i = 0; i < CalendarInfo.WEEK_LENGTH; i++)
+                if (count.HasValue)
                 {
-                    int? count = Scheduler?.AppointmentCount(Week.Value, i);
-
-                    if (count.HasValue)
-                    {
-                        day_labels[i].Text = day_names[i] + string.Format("\n\n{0}/{1}",
-                            count.Value, CalendarInfo.MAX_APPOINTMENTS[i]);
-                    }
-                    else
-                    {
-                        day_labels[i].Text = day_names[i] + string.Format("\n\n{0}/{1}",
-                            "?", CalendarInfo.MAX_APPOINTMENTS[i]);
-                    }
-
-                    OnRequestRedraw(this, new RedrawEventArgs(day_labels[i]));
+                    day_labels[i].Text = day_names[i] + string.Format("\n\n{0}/{1}",
+                        count.Value, CalendarInfo.MAX_APPOINTMENTS[i]);
+                }
+                else
+                {
+                    day_labels[i].Text = day_names[i] + string.Format("\n\n{0}/{1}",
+                        "?", CalendarInfo.MAX_APPOINTMENTS[i]);
                 }
 
-                OnRequestRedraw(this, new RedrawEventArgs(nav_instructions));
+                // only redraw label if necessary
+                if (old_text != day_labels[i].Text)
+                {
+                    OnRequestRedraw(this, new RedrawEventArgs(day_labels[i]));
+                }
             }
+
+            OnRequestRedraw(this, new RedrawEventArgs(nav_instructions));
         }
     }
 
+    class DefaultContent : BinaryContainer, IInterfaceContent
+    {
+        public string Name => "Default";
+
+        private Menu menu = new Menu("Schedule Apt", "Billing", "Summary")
+        {
+            CountY = 6,
+            PreferredWidth = 13,
+            OuterBorders = LineDrawer.ALL & ~LineDrawer.RIGHT
+        };
+
+        private Calendar calendar = new Calendar();
+
+        public DefaultContent(Reference<int> CurrentWeek)
+        {
+            calendar.CurrentWeek = CurrentWeek;
+
+            Vertical = false;
+
+            PreferredHeight = 20;
+
+            First = menu;
+
+            Second = calendar;
+
+            Add(menu, calendar);
+        }
+
+        public void Initialize(RootContainer root)
+        {
+
+        }
+
+        public void Activate()
+        {
+            menu.Activate();
+        }
+
+        public void Deactivate()
+        {
+            menu.Deactivate();
+        }
+
+    }
+
     /// <summary>
-    /// The menu on the left side of the initial screen.
+    /// The menu on the left side of the default screen.
     /// </summary>
     class Menu : GridContainer
     {
         public AppointmentScheduler Scheduler { get; set; }
 
         InputController controller = new InputController();
-        
-        private Button Patients = new Button()
-        {
-            Text = "Patients"
-        };
 
-        private Button Schedule = new Button()
-        {
-            Text = "Schedule"
-        };
+        private Button[] buttons;
 
-        private Button Third = new Button()
-        {
-            Text = "Third"
-        };
+        private string[] button_names;
 
-        public Menu()
-		{
+        public Menu(params string[] button_names)
+        {
+            this.button_names = button_names;
+            buttons = new Button[button_names.Length];
+
+            for (int i = 0; i < button_names.Length; i++)
+            {
+                buttons[i] = new Button()
+                {
+                    Text = button_names[i]
+                };
+
+                controller.Add(buttons[i]);
+                Add(buttons[i]);
+            }
+
             controller.Parent = this;
-
-            controller.Add(Patients);
-            controller.Add(Schedule);
-            controller.Add(Third);
             
-            CountY = 6;
-			
-			PreferredWidth = 13;
+            DrawBorders = true;
 
-			DrawBorders = true;
-
-			OuterBorders &= ~LineDrawer.RIGHT;
-            
-            Add (Patients, Schedule, Third);
-        }
-
-        public void Init(RootContainer root)
-		{
-            root.RegisterController(controller);
-            controller.SetSelectedIndex(0);
-
-            root.OnRequestController(this, new ControllerEventArgs(controller));
         }
         
+        public void RegisterAction(string button, EventHandler<ComponentEventArgs> evt)
+        {
+            buttons[Array.IndexOf(button_names, button)].Action += evt;
+        }
+
+        public void RemoveAction(string button, EventHandler<ComponentEventArgs> evt)
+        {
+            buttons[Array.IndexOf(button_names, button)].Action -= evt;
+        }
+
+        public void Activate()
+        {
+            controller.Activate();
+        }
+
+        public void Deactivate()
+        {
+            controller.Deactivate();
+        }
     }
 
     /// <summary>
-    /// The calendar on the right side of the home screen.
+    /// The calendar on the right side of the default screen.
     /// </summary>
 	class Calendar: GridContainer
 	{
