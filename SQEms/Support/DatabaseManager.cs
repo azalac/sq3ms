@@ -241,6 +241,40 @@ namespace Support
         }
 
         /// <summary>
+        /// Gets the maximum for a specific column, if the column is a type int.
+        /// </summary>
+        /// <param name="column">The column.</param>
+        /// <returns>The maximum value.</returns>
+        public int GetMaximum(string column)
+        {
+            int column_index = Array.IndexOf(prototype.Columns, column);
+
+            if (column_index == -1)
+            {
+                throw new ArgumentException("Column '" + column + "' doesn't exist in the given table");
+            }
+
+            if (prototype.ColumnTypes[column_index] != typeof(int))
+            {
+                throw new ArgumentException("Column '" + column + "' is type " + prototype.ColumnTypes[column_index] + " not int");
+            }
+
+            int max = int.MinValue;
+
+            foreach(Tuple<object, object> row in this[column])
+            {
+                int val = (int)row.Item1;
+
+                if(val > max)
+                {
+                    max = val;
+                }
+            }
+
+            return max;
+        }
+
+        /// <summary>
         /// Gets all rows in the format {specified column, primary key}
         /// </summary>
         /// <param name="column"></param>
