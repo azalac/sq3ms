@@ -129,7 +129,7 @@ namespace SchedulingUI
 
             InitializeContent();
 
-            ContentController.Activate(ContentController.Default);
+            ContentController.Activate(TimeSlotContent.Name);
 
             root.DoLayout();
 
@@ -162,7 +162,6 @@ namespace SchedulingUI
             root_container.Second = Content;
 
             root.Add(root_container);
-
         }
 
         /// <summary>
@@ -210,8 +209,14 @@ namespace SchedulingUI
 
     }
     
+    /// <summary>
+    /// An interface which represents content for the UI.
+    /// </summary>
     public interface IInterfaceContent
     {
+        /// <summary>
+        /// This content's name.
+        /// </summary>
         string Name { get; }
 
         /// <summary>
@@ -302,35 +307,41 @@ namespace SchedulingUI
             Vertical = false;
 
             Week = new Reference<int>(0);
-
-            KeyPress += HeaderWeek_Keypress;
-
+            
             update_label_text();
         }
 
-        private void HeaderWeek_Keypress(object sender, ConsoleKeyEventArgs args)
+        protected override bool HandleKeyPress(object sender, ConsoleKeyEventArgs args)
         {
             if (!Visible || !AcceptInput.Value)
             {
-                return;
+                return false;
             }
-            
+
+            bool handled = false;
+
             if (args.Key.Key == ConsoleKey.I)
             {
                 Week.Value--;
                 update_label_text();
+                handled = true;
             }
             else if (args.Key.Key == ConsoleKey.K)
             {
                 Week.Value++;
                 update_label_text();
+                handled = true;
             }
+
+            return handled;
             
         }
 
         private void update_label_text()
         {
             nav_instructions.Text = string.Format("I /\\\nMONTH {0}\nK \\/", Week.Value);
+
+            OnRequestRedraw(this, new RedrawEventArgs(nav_instructions));
 
             for (int i = 0; i < CalendarInfo.WEEK_LENGTH; i++)
             {
@@ -356,7 +367,6 @@ namespace SchedulingUI
                 }
             }
 
-            OnRequestRedraw(this, new RedrawEventArgs(nav_instructions));
         }
     }
 
@@ -423,6 +433,8 @@ namespace SchedulingUI
             this.button_names = button_names;
             buttons = new Button[button_names.Length];
 
+            controller.Parent = this;
+            
             for (int i = 0; i < button_names.Length; i++)
             {
                 buttons[i] = new Button()
@@ -434,8 +446,6 @@ namespace SchedulingUI
                 Add(buttons[i]);
             }
 
-            controller.Parent = this;
-            
             DrawBorders = true;
 
         }
