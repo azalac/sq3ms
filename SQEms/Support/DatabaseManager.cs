@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Configuration;
 using Definitions;
+using System.Collections;
 
 namespace Support
 {
@@ -167,12 +168,109 @@ namespace Support
 			Data [columns [prototype.PrimaryKeyIndex]] = columns;
 		}
 
-		/// <summary>
-		/// Gets or sets a column from a specific row.
-		/// </summary>
-		/// <param name="primary_key">The row's primary key</param>
-		/// <param name="column">The column</param>
-		public object this[object primary_key, string column]
+        /// <summary>
+        /// Gets the primary keys for rows which match a certain condition.
+        /// </summary>
+        /// <typeparam name="T">The type to check against.</typeparam>
+        /// <param name="column">The column to check.</param>
+        /// <param name="predicate">The condition.</param>
+        /// <returns>The primary keys,.</returns>
+        public IEnumerable<object> Where<T>(string column, Func<T, bool> predicate)
+        {
+            int column_index = Array.IndexOf(prototype.Columns, column);
+
+            if (column_index == -1)
+            {
+                throw new ArgumentException("Column '" + column + "' doesn't exist in the given table");
+            }
+
+            if (typeof(T) != prototype.ColumnTypes[column_index])
+            {
+                throw new ArgumentException("Column '" + column + "' is type " + prototype.ColumnTypes[column_index] + " not " + typeof(T));
+            }
+
+            foreach (Tuple<object, object> row in this[column])
+            {
+                if (predicate((T)row.Item1))
+                {
+                    yield return row.Item2;
+                }
+            }
+
+            yield break;
+        }
+
+        /// <summary>
+        /// Gets all primary keys for rows where the specified column equals a specific value.
+        /// </summary>
+        /// <remarks>
+        /// 
+        /// I recommend using this method with System.Linq, because it includes many helper methods.
+        /// 
+        /// Example (using Linq):
+        /// 
+        /// <code>
+        /// 
+        /// object pk = People.WhereEquals<string>("firstName", "[insert first name]").First();
+        /// 
+        /// object lastName = People[pk, "lastName"];
+        /// 
+        /// do something with lastName, etc.
+        /// 
+        /// </code>
+        /// 
+        /// Example (not using Linq):
+        /// 
+        /// <code>
+        /// 
+        /// foreach(object pk in People.WhereEquals<string>("firstName", "[insert first name]"))
+        /// {
+        ///     // this person has a first name which matches the given input, do something with it.
+        /// }
+        /// 
+        /// </code>
+        /// 
+        /// </remarks>
+        /// <typeparam name="T">The column type.</typeparam>
+        /// <param name="column">The column to compare against.</param>
+        /// <param name="equals">The value to compare against.</param>
+        /// <returns>The primary keys.</returns>
+        public IEnumerable<object> WhereEquals<T>(string column, T equals)
+        {
+            return Where<T>(column, t => object.Equals(t, equals));
+        }
+
+        /// <summary>
+        /// Gets all rows in the format {specified column, primary key}
+        /// </summary>
+        /// <param name="column"></param>
+        /// <returns></returns>
+        public IEnumerable<Tuple<object, object>> this[string column]
+        {
+            get {
+
+                int column_index = Array.IndexOf(prototype.Columns, column);
+
+                if(column_index == -1)
+                {
+                    throw new ArgumentException("Column '" + column + "' doesn't exist in the given table");
+                }
+
+                foreach (object pk in Data.Keys)
+                {
+                    yield return new Tuple<object, object>(Data[pk][column_index], pk);
+                }
+
+                yield break;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets a column from a specific row.
+        /// </summary>
+        /// <param name="primary_key">The row's primary key</param>
+        /// <param name="column">The column</param>
+        public object this[object primary_key, string column]
 		{
 			get{
 				if (Data.ContainsKey (primary_key))
@@ -227,10 +325,19 @@ namespace Support
 	/// </summary>
 	public abstract class DatabaseTablePrototype
 	{
+        /// <summary>
+        /// This table's name.
+        /// </summary>
 		public string Name { get; protected set; }
 
+        /// <summary>
+        /// This table's column names.
+        /// </summary>
 		public string[] Columns { get; protected set; }
 
+        /// <summary>
+        /// A lookup
+        /// </summary>
 		public readonly Dictionary<string, int> ColumnsReverse = new Dictionary<string, int>();
 
 		public Type[] ColumnTypes { get; protected set; }
@@ -366,7 +473,7 @@ namespace Support
 	/// <remarks>
 	/// Fields:
 	/// Int32 - PatientID (PK)
-	/// string- HCN
+	/// string - HCN
 	/// string - lastName
 	/// string - firstName
 	/// char - mInitial
@@ -511,14 +618,13 @@ namespace Support
 		#region implemented abstract members of DatabaseTablePrototype
 
 		public BillingMasterTable():
-			base(4)
+			base(3)
 		{
 			Name = "BillingMaster";
 
-			Columns = new string[]{"BillingCode", "EffectiveDate", "DollarAmount", "ResponseState"};
+			Columns = new string[]{"BillingCode", "EffectiveDate", "DollarAmount"};
 
-			ColumnTypes = new Type[] { typeof(string), typeof(string), typeof(string),
-				typeof(Int32)};
+			ColumnTypes = new Type[] { typeof(string), typeof(string), typeof(string)};
 
 			PrimaryKeyIndex = 0;
 
@@ -545,6 +651,35 @@ namespace Support
 		#endregion
 
 	}
+
+    class BillingCodeTable : DatabaseTablePrototype
+    {
+        public BillingCodeTable() : base(0)
+        {
+            Name = "Billing";
+
+            Columns = new string[] { "AppointmentID", "DateOfService", "HCN", "Gender", "BillingCode", "Fee"};
+
+            ColumnTypes = new Type[] {
+                typeof(Int32),
+                typeof(string),
+                typeof(string),
+                typeof(SexTypes),
+                typeof(string),
+                typeof(string)
+            };
+
+            ColumnReaders[6] = (r) => (SexTypes)r.ReadInt32();
+
+            ColumnWriters[6] = (r, o) => r.Write(Convert.ToInt32(o));
+
+            PrimaryKeyIndex = 0;
+
+            base.PostInit();
+        }
+
+
+    }
 
 }
 
