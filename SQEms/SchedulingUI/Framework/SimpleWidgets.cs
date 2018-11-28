@@ -222,6 +222,16 @@ namespace SchedulingUI
         /// </summary>
         public int CountY { get; set; }
 
+        /// <summary>
+        /// The height per grid row.
+        /// </summary>
+        public double HeightPerRow { get => ((double)Height) / CountY; }
+
+        /// <summary>
+        /// The width per grid column.
+        /// </summary>
+        public double WidthPerColumn { get => ((double)Width) / CountX; }
+
 		/// <summary>
 		/// The border side flags. Determines the sides to draw.
 		/// </summary>
@@ -235,13 +245,13 @@ namespace SchedulingUI
             CountY = 1;
 			OuterBorders = LineDrawer.ALL;
         }
-
+        
         #region implemented abstract members of Container
 
         protected override void DoLayoutImpl()
         {
-            double width_per = ((double)Width) / CountX;
-            double height_per = ((double)Height) / CountY;
+            double width_per = WidthPerColumn;
+            double height_per = HeightPerRow;
 
             for (int xi = 0; xi < CountX; xi++)
             {
@@ -595,7 +605,8 @@ namespace SchedulingUI
 			{
 				Tuple<InterfaceEvent, object, EventArgs> evt = Events.Take ();
 
-				System.Diagnostics.Debug.WriteLine ("Handling " + evt.Item1);
+				System.Diagnostics.Debug.WriteLine (string.Format("Handling {0}, sender: {1}, args: {2}",
+                    evt.Item1, evt.Item2, evt.Item3));
 
                 switch (evt.Item1)
                 {
@@ -738,6 +749,11 @@ namespace SchedulingUI
         /// The key that was pressed.
         /// </summary>
 		public ConsoleKeyInfo Key { get; private set; }
+
+        /// <summary>
+        /// Whether this event was handled or not.
+        /// </summary>
+        public bool Handled = false;
 
 		public ConsoleKeyEventArgs(ConsoleKeyInfo key)
 		{
