@@ -127,6 +127,11 @@ namespace SchedulingUI
         public event EventHandler<ConsoleKeyEventArgs> KeyPress;
 
         /// <summary>
+        /// Same as <see cref="KeyPress"/>, but invoked before it.
+        /// </summary>
+        public event EventHandler<ConsoleKeyEventArgs> PriorityKeyPress;
+        
+        /// <summary>
         /// The background color of this component.
         /// </summary>
         public ColorCategory Background { get; set; }
@@ -135,7 +140,7 @@ namespace SchedulingUI
         /// The foreground color of this component.
         /// </summary>
         public ColorCategory Foreground { get; set; }
-
+        
         /// <summary>
         /// Invokes <see cref="RequestRedraw"/>.
         /// </summary>
@@ -156,11 +161,47 @@ namespace SchedulingUI
         /// <param name="args">The key that was pressed</param>
 		public virtual void OnKeyPressed(object keyboard, ConsoleKeyEventArgs args)
 		{
-			if (KeyPress != null)
-			{
-				KeyPress (keyboard, args);
-			}
+            args.Handled = HandleKeyPress(keyboard, args);
+
+            // handle priority key presses
+            if (PriorityKeyPress != null)
+            {
+                foreach (EventHandler<ConsoleKeyEventArgs> handler in PriorityKeyPress.GetInvocationList())
+                {
+                    handler(keyboard, args);
+
+                    if (args.Handled)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            // handle normal key presses
+            if (KeyPress != null && !args.Handled)
+            {
+                foreach (EventHandler<ConsoleKeyEventArgs> handler in KeyPress.GetInvocationList())
+                {
+                    handler(keyboard, args);
+
+                    if (args.Handled)
+                    {
+                        break;
+                    }
+                }
+            }
 		}
+
+        /// <summary>
+        /// Handles the keypress for this component.
+        /// </summary>
+        /// <param name="keyboard">The keyboard that sent the event.</param>
+        /// <param name="args">The key.</param>
+        /// <returns><code>true</code> if the keypress was handled, false otherwise.</returns>
+        protected virtual bool HandleKeyPress(object keyboard, ConsoleKeyEventArgs args)
+        {
+            return false;
+        }
 
         /// <summary>
         /// Invokes <see cref="RequestFocus"/>
@@ -485,7 +526,12 @@ namespace SchedulingUI
 		{
 			HasArea = false;
 		}
-	}
+
+        public override string ToString()
+        {
+            return string.Format("Redraw[{0}]", HasArea ? Area.ToString() : "");
+        }
+    }
 
     /// <summary>
     /// An interface which respresents a write-only console. Does not necessarily represent a real console.
@@ -665,6 +711,10 @@ namespace SchedulingUI
 
         public void PopColors()
         {
+            // I'm getting an NPE in this function, so I need this to help with debugging
+            // It only happens randomly (the best kind of bug...)
+            int pre_count = colors.Count;
+
             Tuple<ConsoleColor, ConsoleColor> c = colors.Pop();
 
             if (c.Item1 != fg_last)
@@ -743,7 +793,7 @@ namespace SchedulingUI
 	public class Subconsole : IConsole
 	{
 		private IConsole parent;
-		private int Left, Top, Width, Height;
+		private readonly int Left, Top, Width, Height;
 
         private int CursorX, CursorY;
 
@@ -769,19 +819,19 @@ namespace SchedulingUI
             if (ValidPosition(CursorX, CursorY))
             {
                 parent.PutCharacter(c);
-                NextPosition();
             }
-            
-		}
+
+            NextPosition();
+        }
 
 		public void PutCharacter (int codepoint)
 		{
             if (ValidPosition(CursorX, CursorY))
             {
                 parent.PutCharacter(codepoint);
-                NextPosition();
             }
-            
+
+            NextPosition();
         }
 
         public void PutCharacter (int x, int y, char c)
@@ -792,7 +842,6 @@ namespace SchedulingUI
 			}
 
             UpdatePosition(x, y);
-
         }
 
         public void PutCharacter (int x, int y, int codepoint)
@@ -803,7 +852,6 @@ namespace SchedulingUI
 			}
 
             UpdatePosition(x, y);
-
         }
 
         /// <summary>
@@ -833,7 +881,7 @@ namespace SchedulingUI
             int i = 0;
             int i2 = 0;
 
-            if(length < s.Length)
+            if(length > s.Length)
             {
                 length = s.Length;
             }
