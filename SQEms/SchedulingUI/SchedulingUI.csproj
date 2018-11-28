@@ -50,7 +50,6 @@
     <Compile Include="Framework\Interface.cs" />
     <Compile Include="Framework\KeyboardInput.cs" />
     <Compile Include="Framework\SimpleWidgets.cs" />
-    <Compile Include="Framework\Testing.cs" />
     <Compile Include="Controller.cs" />
     <Compile Include="SchedulingController.cs" />
   </ItemGroup>
