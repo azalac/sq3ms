@@ -27,31 +27,24 @@ namespace SchedulingUI
 		{
 			Text = "";
 			this.TextLength = TextLength;
-			KeyPress += HandleKeyPress;
         }
-
-        /// <summary>
-        /// Handles arrow control, character deletion, and character insertion.
-        /// </summary>
-        /// <param name="sender">The keyboard input object</param>
-        /// <param name="args">The console key</param>
-		private void HandleKeyPress(object sender, ConsoleKeyEventArgs args)
+        
+		protected override bool HandleKeyPress(object sender, ConsoleKeyEventArgs args)
 		{
 			// if this component doesn't have focus, don't do the keypress
 			if (!HasFocus)
 			{
-				return;
+				return false;
 			}
 
 			bool needsRedraw = false;
-			
-			Rectangle pre = GetTextArea ();
 
+            string text_pre = Text;
+            
 			switch (args.Key.Key)
 			{
 			case ConsoleKey.Backspace:
 				Delete ();
-				needsRedraw = true;
 				break;
 
 			case ConsoleKey.LeftArrow:
@@ -72,14 +65,20 @@ namespace SchedulingUI
 			if(!char.IsControl(args.Key.KeyChar))
 			{
 				Insert (args.Key.KeyChar);
-
-				needsRedraw = true;
 			}
+            
+            // if the text has changed, it needs to be redrawn.
+            if(!Text.Equals(text_pre))
+            {
+                needsRedraw = true;
+            }
 
 			if(needsRedraw)
 			{
-				this.OnRequestRedraw (this, new RedrawEventArgs (GetTextArea().Union(pre)));
+				OnRequestRedraw (this, new RedrawEventArgs (this));
 			}
+            
+            return needsRedraw;
 		}
 
 		private void Delete()
@@ -194,12 +193,13 @@ namespace SchedulingUI
 
         public Button()
         {
-			this.KeyPress += HandleKeyPress;
 			Text = "Button";
         }
 
-        private void HandleKeyPress(object sender, ConsoleKeyEventArgs args)
+        protected override bool HandleKeyPress(object sender, ConsoleKeyEventArgs args)
 		{
+            bool handled = false;
+
 			if (HasFocus && args.Key.Key == ConsoleKey.Enter)
             {
                 double current_millis = (DateTime.UtcNow - UNIX_EPOCH).TotalMilliseconds;
@@ -216,8 +216,12 @@ namespace SchedulingUI
 					}
 
                     LAST_ACTIVATION = current_millis;
+
+                    handled = true;
                 }
 			}
+
+            return handled;
 		}
 
 		public override void UpdateColors (IConsole buffer)
@@ -227,183 +231,7 @@ namespace SchedulingUI
 		}
 
 	}
-
-    /// <summary>
-    /// A component which contains many TextInputs and their names/labels.
-    /// This component is not very useful, so it is not commented.
-    /// <see cref="InputController"/> is more flexible and easy to use.
-    /// </summary>
-    public class InputArea : Container
-	{
-		private readonly string[] fields;
-
-		private readonly Label[] labels;
-
-		private readonly IComponent[] components;
-
-		private int selectedIndex = 0;
-        
-		public int SelectedIndex
-		{
-			get
-			{
-				return selectedIndex;
-			}
-
-			set
-			{
-                int old_selected = selectedIndex;
-				selectedIndex = value;
-
-                OnRequestFocus(this, new ComponentEventArgs(components[selectedIndex]));
-                OnRequestRedraw (this, new RedrawEventArgs(components[old_selected]));
-                OnRequestRedraw (this, new RedrawEventArgs (components [selectedIndex]));
-			}
-		}
-
-		/// <summary>
-		/// The width of labels, or 0 for automatic.
-		/// </summary>
-		public int LabelWidth { get; set; }
-
-		/// <summary>
-		/// The width of inputs, or 0 for automatic.
-        /// Limits text to value - 1.
-		/// </summary>
-		public int InputWidth { get; set; }
-
-		/// <summary>
-		/// The height of each row.
-		/// </summary>
-		public int RowHeight { get; set; }
-        
-		public InputArea(params string[] fields)
-		{
-			this.fields = fields;
-
-			labels = new Label[fields.Length];
-			components = new IComponent[fields.Length];
-
-			for (int i = 0; i < fields.Length; i++)
-			{
-				labels [i] = new Label () {
-					Text = fields[i]
-				};
-                
-				components [i] = new TextInput ();
-			}
-
-			KeyPress += HandleKeyPress;
-
-			Add (labels);
-			Add (components);
-
-        }
-
-		public IComponent this[string field]
-		{
-			get
-			{
-				if (Array.Exists (fields, field.Equals))
-				{
-					return components [Array.IndexOf (fields, field)];
-				}
-				else
-				{
-					return null;
-				}
-			}
-
-			set
-			{
-				if (Array.Exists (fields, field.Equals))
-				{
-					int i = Array.IndexOf (fields, field);
-					Remove (components [i]);
-					components [i] = value;
-					Add (components [i]);
-
-					if (i == SelectedIndex)
-					{
-						SelectedIndex = SelectedIndex;
-					}
-				}
-			}
-		}
-
-		private void HandleKeyPress(object sender, ConsoleKeyEventArgs args)
-		{
-			if (!Visible)
-			{
-				return;
-			}
-
-			if (args.Key.Key == ConsoleKey.UpArrow)
-			{
-				SelectedIndex = Mod(SelectedIndex - 1, fields.Length);
-			}
-			else if (args.Key.Key == ConsoleKey.DownArrow)
-			{
-				SelectedIndex = Mod(SelectedIndex + 1, fields.Length);
-			}
-		}
-
-		private int CalculateLabelWidth()
-		{
-			int w = 0;
-
-			if (LabelWidth == 0)
-			{
-				for (int i = 0; i < labels.Length; i++)
-				{
-					w = Math.Max (w, labels [i].Text.Length);
-				}
-			}
-			else
-			{
-				w = LabelWidth;
-			}
-			return w;
-		}
-
-		private static int Mod(int a, int n)
-		{
-			return (a % n + n) % n;
-		}
-
-		#region implemented abstract members of Container
-
-		protected override void DoLayoutImpl ()
-		{
-			int lw = CalculateLabelWidth ();
-
-			int height = RowHeight < 1 ? 1 : RowHeight;
-
-			for (int i = 0; i < fields.Length; i++)
-			{
-				Label l = labels [i];
-				l.Top = i * height + Top;
-				l.Left = Left;
-				l.Width = lw;
-				l.Height = height;
-				
-				IComponent t = components [i];
-				t.Top = i * height + Top;
-				t.Left = lw + 1 + Left;
-				t.Width = InputWidth == 0 ? Width - lw - 1 : InputWidth;
-				t.Height = height;
-
-                if (t is TextInput)
-                {
-                    (t as TextInput).TextLength = t.Width;
-                }
-			}
-		}
-
-		#endregion
-
-	}
-
+    
     /// <summary>
     /// Controls multiple input controls, allowing the user to select between them.
     /// </summary>
@@ -430,11 +258,11 @@ namespace SchedulingUI
             {
                 if(parent != null)
                 {
-                    parent.KeyPress -= HandleKeypress;
+                    parent.PriorityKeyPress -= HandleKeypress;
                 }
 
                 parent = value;
-                parent.KeyPress += HandleKeypress;
+                parent.PriorityKeyPress += HandleKeypress;
             }
         }
         
@@ -446,7 +274,7 @@ namespace SchedulingUI
         /// <summary>
         /// Invoked whenever the selection changes.
         /// </summary>
-        public event EventHandler<ObjectEventArgs> SelectionChange;
+        public event EventHandler<ReferenceArgs<int>> SelectionChange;
 
         private readonly List<object> Components = new List<object>();
         
@@ -478,10 +306,12 @@ namespace SchedulingUI
             if (args.Key.Key == Dec)
             {
                 SetSelectedIndex(Mod(selectedIndex - 1, Components.Count));
+                args.Handled = true;
             }
             else if (args.Key.Key == Inc)
             {
                 SetSelectedIndex(Mod(selectedIndex + 1, Components.Count));
+                args.Handled = true;
             }
         }
 
@@ -510,7 +340,7 @@ namespace SchedulingUI
             // Try to invoke SelectionChange
             if (SelectionChange != null)
             {
-                SelectionChange(this, new ObjectEventArgs(Components[selectedIndex]));
+                SelectionChange(this, new ReferenceArgs<int>(selectedIndex));
             }
 
         }
