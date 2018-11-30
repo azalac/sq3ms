@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Configuration;
 using Definitions;
+using System.Linq;
 using System.Collections;
 
 namespace Support
@@ -238,6 +239,45 @@ namespace Support
         public IEnumerable<object> WhereEquals<T>(string column, T equals)
         {
             return Where<T>(column, t => object.Equals(t, equals));
+        }
+
+
+        /// </remarks>
+        /// <param name="columns">The columns to compare against.</param>
+        /// <param name="equals">The values to compare against.</param>
+        /// <returns>The primary keys.</returns>
+        private static int WhereEqualsInt = 0;
+
+        public IEnumerable<object> WhereEquals(string[] columns, params int[] equals)
+        {
+            DatabaseManager databaseManager = new DatabaseManager();
+            DatabaseTable tmpTable = databaseManager["Appointments"];
+
+            IEnumerable<object> retObject = null;
+            foreach (object key in this.WhereEquals<int>(columns[WhereEqualsInt], equals[WhereEqualsInt]))
+            {
+                tmpTable.Insert(this[key, "AppointmentID"],
+                                this[key, "Month"],
+                                this[key, "Week"],
+                                this[key, "Day"],
+                                this[key, "TimeSlot"],
+                                this[key, "PatientID"],
+                                this[key, "CaregiverID"]);
+            }
+
+            if (WhereEqualsInt == columns.Length - 1)
+            {
+                retObject = this.WhereEquals<int>(columns[WhereEqualsInt], equals[WhereEqualsInt]);
+            }
+            else
+            {
+                WhereEqualsInt++;
+                return tmpTable.WhereEquals(columns, equals);
+            }
+
+            WhereEqualsInt = 0;
+
+            return retObject;
         }
 
         /// <summary>
