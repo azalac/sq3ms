@@ -345,7 +345,8 @@ namespace SchedulingUI
 
             for (int i = 0; i < CalendarInfo.WEEK_LENGTH; i++)
             {
-                int? count = Scheduler?.AppointmentCount(0, Week.Value, i);
+                //Added the 1 for the month to be search, should be changed
+                int? count = Scheduler?.AppointmentCount(1, Week.Value, i);
 
                 string old_text = day_labels[i].Text;
 
