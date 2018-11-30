@@ -345,7 +345,7 @@ namespace SchedulingUI
 
             for (int i = 0; i < CalendarInfo.WEEK_LENGTH; i++)
             {
-                int? count = Scheduler?.AppointmentCount(Week.Value, i);
+                int? count = Scheduler?.AppointmentCount(0, Week.Value, i);
 
                 string old_text = day_labels[i].Text;
 
@@ -522,7 +522,7 @@ namespace SchedulingUI
             {
                 for(int slot = 0; slot < CalendarInfo.MAX_APPOINTMENTS[day]; slot++)
                 {
-                    Tuple<int, int> apt = Scheduler?.GetPatientIDs(new AptTimeSlot(CurrentWeek.Value, day, slot));
+                    Tuple<int, int> apt = Scheduler?.GetPatientIDs(new AptTimeSlot(1, CurrentWeek.Value, day, slot));
 
                     int i = slot * CountX + day;
 
