@@ -118,7 +118,8 @@ namespace SchedulingUI
 
         private List<Tuple<IComponent, ColorCategory>> HighlightedComponents = new List<Tuple<IComponent, ColorCategory>>();
 
-        private AptTimeSlot aptTimeSlot = new AptTimeSlot(0, 0, 0);
+        //Added 0 for the month
+        private AptTimeSlot aptTimeSlot = new AptTimeSlot(0, 0, 0, 0);
 
         public string Name => "TimeSlot-Selector";
 
@@ -170,7 +171,7 @@ namespace SchedulingUI
             ControlSelector.SetSelectedIndex(1);
             DateSelector.SetSelectedIndex(0);
 
-            controller.SelectionChange += UpdateGrid;
+            //controller.SelectionChange += UpdateGrid;
         }
 
         private void UpdateGrid(object sender, ObjectEventArgs e)
