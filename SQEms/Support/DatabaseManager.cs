@@ -728,7 +728,7 @@ namespace Support
 
     class BillingCodeTable : DatabaseTablePrototype
     {
-        public BillingCodeTable() : base(0)
+        public BillingCodeTable() : base(6)
         {
             Name = "Billing";
 
