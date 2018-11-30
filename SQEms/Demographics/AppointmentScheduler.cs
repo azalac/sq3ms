@@ -7,12 +7,14 @@ namespace Support
 	/// </summary>
 	public class AptTimeSlot
 	{
-		public int week,
+		public int month,
+                   week,
 				   day,
 				   slot;
 
-        public AptTimeSlot(int week, int day, int slot)
+        public AptTimeSlot(int month, int week, int day, int slot)
         {
+            this.month = month;
             this.week = week;
             this.day = day;
             this.slot = slot;
@@ -60,6 +62,7 @@ namespace Support
         /// <returns>The patient IDs for the patients, or null if the appointment isn't scheduled.</returns>
         public Tuple<int, int> GetPatientIDs(AptTimeSlot slot)
         {
+            
             return null;
         }
 
@@ -69,9 +72,19 @@ namespace Support
         /// <param name="week">The week to check</param>
         /// <param name="day">The day to check</param>
         /// <returns>The number of appointments</returns>
-        public int AppointmentCount(int week, int day)
+        public int AppointmentCount(int month, int week, int day)
         {
-            return 0;
+            int[] toSearch = { month, week, day};
+            string[] columns = { "Month", "Week", "Day"};
+
+            int retInt = 0;
+
+            foreach (object key in Appointments.WhereEquals(columns, toSearch))
+            {
+                retInt++;
+            }
+
+            return retInt;
         }
 
     }
