@@ -34,8 +34,8 @@ namespace Billing
         /// <summary>
         /// Reads the master description file into the database.
         /// </summary>
+        /// <param name="BillingDescription">The master billing code table</param>
         /// <param name="data">The master file data</param>
-        /// <param name="database">The database to insert into</param>
         /// <remarks>
         /// 
         /// Calls <see cref="ParseFromString(string)"/>.
@@ -46,15 +46,12 @@ namespace Billing
         /// </remarks>
         /// 
 
-        public static void Initialize(string data, DatabaseManager database)
+        public static void Initialize(DatabaseTable BillingDescription, string data)
         {
 
             //Create a new instance of the logging class so error could be logged
             Logging logger = new Logging();
-
-            // this table is not yet implemented
-            DatabaseTable BillingDescription = database["BillingMaster"];
-
+            
             //Create a string[] reading all data from text file
             string[] masterBillingFiles = { };
 
