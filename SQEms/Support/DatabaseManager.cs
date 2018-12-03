@@ -241,15 +241,75 @@ namespace Support
             return Where<T>(column, t => object.Equals(t, equals));
         }
 
+		/// <summary>
+		/// Gets all primary keys which rows match the required columns and objects.
+		/// </summary>
+		/// <param name="columns">The semi-colon separated columns.</param>
+		/// <param name="objs">The objects to check.</param>
+		/// <returns>All primary keys.</returns>
+		public IEnumerable<object> WhereEquals(string columns, params object[] objs)
+		{
+			string[] cols = columns.Split (";");
+			int col_indices = new int[cols.Length];
 
-        /// </remarks>
-        /// <param name="columns">The columns to compare against.</param>
-        /// <param name="equals">The values to compare against.</param>
-        /// <returns>The primary keys.</returns>
+			// check columns lengths
+			if (columns.Length != objs.Length)
+			{
+				throw new ArgumentException("Length mismatch between columns and objects");
+			}
+
+			// cache the column indices, and check if the columns are valid
+			for (int i = 0; i < columns.Length; i++)
+			{
+				col_indices [i] = Array.IndexOf (prototype.Columns, cols [i]);
+
+				if (col_indices[i] == -1)
+				{
+					throw new ArgumentException ("Invalid column '" + cols [i] + "'");
+				}
+			}
+
+			// for each row, return the row if it matches
+			foreach (object pk in Data.Keys)
+			{
+				bool matches = true;
+
+				object[] row = Data [pk];
+
+				// check each column if they're equal
+				for (int i = 0; i < cols.Length; i++)
+				{
+					if (!Object.Equals (objs [i], row [col_indices [i]]))
+					{
+						matches = false;
+						break;
+					}
+				}
+
+				if (matches)
+				{
+					// signals to the runtime that this method should stop running (temporarily)
+					// and return 'pk' to the for loop.
+					yield return pk;
+				}
+			}
+		}
+
         private static int WhereEqualsInt = 0;
-
-        public IEnumerable<object> WhereEquals(string[] columns, params int[] equals)
+		
+		/// <summary>
+		/// Gets all rows which equal a value.
+		/// 
+		/// Not thread safe.
+		/// </summary>
+		/// <param name="columns">The columns to compare against.</param>
+		/// <param name="equals">The values to compare against.</param>
+		/// <returns>The primary keys.</returns>
+        public IEnumerable<object> WhereEquals2(string[] columns, params int[] equals)
         {
+			// you guys really should've commented this, it took me a couple
+			// minutes to figure out what this was doing
+
             DatabaseManager databaseManager = new DatabaseManager();
             DatabaseTable tmpTable = databaseManager["Appointments"];
 
