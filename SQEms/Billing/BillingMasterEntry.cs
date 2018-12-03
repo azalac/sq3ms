@@ -34,7 +34,7 @@ namespace Billing
         /// <summary>
         /// Reads the master description file into the database.
         /// </summary>
-        /// <param name="path">The master file path</param>
+        /// <param name="data">The master file data</param>
         /// <param name="database">The database to insert into</param>
         /// <remarks>
         /// 
@@ -46,7 +46,7 @@ namespace Billing
         /// </remarks>
         /// 
 
-        public static void Initialize(string path, DatabaseManager database)
+        public static void Initialize(string data, DatabaseManager database)
         {
 
             //Create a new instance of the logging class so error could be logged
@@ -61,7 +61,7 @@ namespace Billing
             try
             {
                 //Reads all lines from the master file
-               masterBillingFiles = File.ReadAllLines(path);
+               masterBillingFiles = data.Split('\n');
             }
 
             catch(Exception)
@@ -72,14 +72,20 @@ namespace Billing
            
 
             //For each billing code in master file
-            foreach(string code in masterBillingFiles)
+            foreach(string code_ in masterBillingFiles)
             {
+                // Remove any extra whitespace
+                string code = code_.Trim();
+
+                // Ignore the line if it's empty, or if it starts with two dashes
+                if(code.Length == 0 || code.StartsWith("--"))
+                {
+                    continue;
+                }
+
                 //Parse the information from the line
                 BillingMasterEntry billingEntry = ParseFromString(code);
-
-                //Store the data into a string array
-                string[] data = { billingEntry.FeeCode, billingEntry.EffectiveDate, billingEntry.DollarAmount };
-
+                
                 //If there was a length error
                 if(billingEntry == null)
                 {
@@ -91,7 +97,7 @@ namespace Billing
                 else
                 {
                     //Insert the information into the table
-                    BillingDescription.Insert(data);
+                    BillingDescription.Insert(billingEntry.FeeCode, billingEntry.EffectiveDate, billingEntry.DollarAmount);
                 }
             }
         }
@@ -117,7 +123,7 @@ namespace Billing
             string tempAmount;
 
             //If the length is less than 23, not a proper billing code length
-            if(data.Length == 23)
+            if(ValidMasterEntry(data))
             {
                 
                 //Set the fee code
@@ -151,6 +157,18 @@ namespace Billing
                 //Length error
                 return null;         
             }   
-        }   
+        }
+        
+        /// <summary>
+        /// Checks if a provided string is a valid master entry.
+        /// </summary>
+        /// <param name="str">The string.</param>
+        /// <returns><code>true</code> if the string is valid</returns>
+        private static bool ValidMasterEntry(string str)
+        {
+            string pattern = @"^(?'code'\w\d\d\d)(?'year'\d{4})(?'month'[01][0-9])(?'day'[0-3][0-9])(?'amt1'\d{7})(?'amt2'\d{4})$";
+
+            return System.Text.RegularExpressions.Regex.IsMatch(str, pattern);
+        }
     }
 }
