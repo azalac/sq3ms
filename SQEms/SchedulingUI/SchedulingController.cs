@@ -121,6 +121,8 @@ namespace SchedulingUI
         //Added 0 for the month
         private AptTimeSlot aptTimeSlot = new AptTimeSlot(0, 0, 0, 0);
 
+        public event EventHandler<ReferenceArgs<IEnumerable<object>>> Finish;
+
         public string Name => "TimeSlot-Selector";
 
         public TimeSlotSelectionController()
@@ -170,7 +172,7 @@ namespace SchedulingUI
             AmountSelector.SetSelectedIndex(0);
             ControlSelector.SetSelectedIndex(1);
             DateSelector.SetSelectedIndex(0);
-
+            
             //controller.SelectionChange += UpdateGrid;
         }
 
@@ -255,4 +257,5 @@ namespace SchedulingUI
             controller.Deactivate();
         }
     }
+    
 }
