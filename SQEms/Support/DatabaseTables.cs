@@ -197,24 +197,11 @@ namespace Support
 
             ReadOnly = true;
 
+            CustomReader = Billing.BillingMasterEntry.Initialize;
+
             base.PostInit();
         }
-
-        public override object[] LoadRowImpl(BinaryReader reader)
-        {
-            // binaryreaders can't read a line, so a streamreader should be used
-            StreamReader input = new StreamReader(reader.BaseStream);
-
-            //input.readline should be called once, then the string should be parsed
-
-            return null;
-        }
-
-        public override void SaveRowImpl(BinaryWriter writer, object[] row)
-        {
-            // table is read-only, do nothing
-        }
-
+        
         #endregion
 
     }
