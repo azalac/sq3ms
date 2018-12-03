@@ -1,10 +1,18 @@
-﻿using Support;
+﻿/*
+* FILE          : BillingMasterEntry.cs
+* PROJECT       : INFO-2180 Software Quality 1, Term Project
+* PROGRAMMER    : Blake Ribble
+* FIRST VERSION : November 1, 2018
+*/
+
+using Support;
 using System;
+using System.IO;
 
 namespace Billing
 {
     /// <summary>
-    /// Represents the master entry for a billing code description.
+    /// Public class which represents the master entry for a billing code description.
     /// </summary>
     public class BillingMasterEntry
     {
@@ -32,14 +40,60 @@ namespace Billing
         /// 
         /// Calls <see cref="ParseFromString(string)"/>.
         /// 
-        /// Pass each line to the method. If the method throws an ArgumentException, 
+        /// Pass each line to the method. If the method returns a null, 
         /// log the error and ignore the line.
         /// 
         /// </remarks>
+        /// 
+
         public static void Initialize(string path, DatabaseManager database)
         {
+
+            //Create a new instance of the logging class so error could be logged
+            Logging logger = new Logging();
+
             // this table is not yet implemented
             DatabaseTable BillingDescription = database["BillingMaster"];
+
+            //Create a string[] reading all data from text file
+            string[] masterBillingFiles = { };
+
+            try
+            {
+                //Reads all lines from the master file
+               masterBillingFiles = File.ReadAllLines(path);
+            }
+
+            catch(Exception)
+            {
+                //Log the error
+                logger.Log(Definitions.LoggingInfo.ErrorLevel.ERROR, "Master file cannot be found");
+            }
+           
+
+            //For each billing code in master file
+            foreach(string code in masterBillingFiles)
+            {
+                //Parse the information from the line
+                BillingMasterEntry billingEntry = ParseFromString(code);
+
+                //Store the data into a string array
+                string[] data = { billingEntry.FeeCode, billingEntry.EffectiveDate, billingEntry.DollarAmount };
+
+                //If there was a length error
+                if(billingEntry == null)
+                {
+                    //Log the error, and continue with code
+                    logger.Log(Definitions.LoggingInfo.ErrorLevel.ERROR, "Incorrect length of billing code");
+
+                    continue;
+                }
+                else
+                {
+                    //Insert the information into the table
+                    BillingDescription.Insert(data);
+                }
+            }
         }
 
         /// <summary>
@@ -54,12 +108,49 @@ namespace Billing
         /// </remarks>
         /// <param name="str">The string</param>
         /// <returns>The parsed BillingMasterEntry</returns>
-        /// <exception cref="ArgumentException">If the entry is invalid.</exception>
-        public static BillingMasterEntry ParseFromString(string str)
+        public static BillingMasterEntry ParseFromString(string data)
         {
-            //TODO this
-            return null;
-        }
-        
+            //Create a new instance of the parsedCode
+            BillingMasterEntry parsedCode = new BillingMasterEntry();
+
+            //Variable that will hold the temporary dollar amount for parsing
+            string tempAmount;
+
+            //If the length is less than 23, not a proper billing code length
+            if(data.Length == 23)
+            {
+                
+                //Set the fee code
+                parsedCode.FeeCode = data.Substring(0, 4);
+
+                //Set the effective date
+                parsedCode.EffectiveDate = data.Substring(4, 8);
+                
+                //Set the temp dollar amount into temp variable
+                tempAmount = data.Substring(12, 11);
+                
+                //Get rid of the leading zeroes
+                tempAmount = tempAmount.TrimStart('0');
+
+                //Get the length of the string to get rid of the two ending zeroes
+                int amountLength = tempAmount.Length - 2;
+
+                //Remove those zeroes
+                tempAmount = tempAmount.Remove(amountLength, 2);
+
+                //Set the dollar amount to properly formatted amount
+                parsedCode.DollarAmount = tempAmount.Substring(0, amountLength - 2) + "." + tempAmount.Substring(amountLength - 2);
+
+                //Return the parsed BillingMasterEntry
+
+                return parsedCode;
+            }
+
+            else
+            {   
+                //Length error
+                return null;         
+            }   
+        }   
     }
 }
