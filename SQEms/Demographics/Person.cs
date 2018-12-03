@@ -1,4 +1,5 @@
-﻿using Support;
+﻿using Definitions;
+using Support;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -88,7 +89,7 @@ namespace Demographics
 
             try
             {
-                People.Insert(maxVal, HCN, lastName, firstName, mInitial, dateBirth, sex, houseID);
+                People.Insert(maxVal + 1, HCN, lastName, firstName, mInitial, dateBirth, sex, houseID);
             }
             catch
             {
