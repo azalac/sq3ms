@@ -1,0 +1,25 @@
+schedule:
+	pick a time
+	pick a patient
+	(optional) pick a caregiver
+
+billing codes:
+	pick an appointment
+	add or remove codes
+	recall in 1, 2, 3 weeks
+
+reconcile:
+	pick a file path
+	[file is processed - no user interaction]
+	OR
+	user alerted of error, asked to retry or exit module
+
+summary:
+	pick a month
+
+add person:
+	find/add household
+	Enter HCN, name, DOB, sex
+
+add household:
+	Enter address 1,2, city, province, phone number, head-of-house HCN
