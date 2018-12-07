@@ -43,6 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="PatientsController.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Framework\AdvancedWidgets.cs" />
     <Compile Include="Framework\ColorScheme.cs" />
