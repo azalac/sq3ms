@@ -62,7 +62,6 @@ namespace Support
         /// <returns>The patient IDs for the patients, or null if the appointment isn't scheduled.</returns>
         public Tuple<int, int> GetPatientIDs(AptTimeSlot slot)
         {
-            
             return null;
         }
 
@@ -74,12 +73,9 @@ namespace Support
         /// <returns>The number of appointments</returns>
         public int AppointmentCount(int month, int week, int day)
         {
-            int[] toSearch = { month, week, day};
-            string[] columns = { "Month", "Week", "Day"};
-
             int retInt = 0;
 
-            foreach (object key in Appointments.WhereEquals(columns, toSearch))
+            foreach (object key in Appointments.WhereEquals("Month;Week;Day", month, week, day))
             {
                 retInt++;
             }

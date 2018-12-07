@@ -102,7 +102,7 @@ namespace Support
 		/// The table's data.
 		/// </summary>
 		private SortedDictionary<object, object[]> Data = new SortedDictionary<object, object[]>();
-
+        
 		public DatabaseTable(string file, DatabaseTablePrototype prototype)
 		{
 			this.Location = file;
@@ -114,13 +114,22 @@ namespace Support
 		/// </summary>
 		public void Load()
 		{
-			using (BinaryReader input = new BinaryReader (new FileStream(Location, FileMode.OpenOrCreate))) {
-				while (input.PeekChar() != -1) {
-					object[] row = prototype.LoadRowImpl (input);
+            // call the custom reader if there is one
+            if(prototype.CustomReader != null)
+            {
+                prototype.CustomReader(this, File.ReadAllText(Location));
+                return;
+            }
 
-					Data [row [prototype.PrimaryKeyIndex]] = row;
-				}
-			}
+            using (BinaryReader input = new BinaryReader(new FileStream(Location, FileMode.OpenOrCreate)))
+            {
+                while (input.PeekChar() != -1)
+                {
+                    object[] row = prototype.LoadRowImpl(input);
+
+                    Data[row[prototype.PrimaryKeyIndex]] = row;
+                }
+            }
 		}
 
 		/// <summary>
@@ -132,8 +141,18 @@ namespace Support
 			// only save if the prototype isn't read only
 			if (!prototype.ReadOnly)
 			{
-				// save a backup
-				File.Move (Location, Location + "~");
+                if (File.Exists(Location))
+                {
+                    // save a backup, if possible
+                    File.Move(Location, Location + "~");
+                }
+
+                // call the custom writer if there is one
+                if(prototype.CustomWriter != null)
+                {
+                    File.WriteAllText(Location, prototype.CustomWriter(this));
+                    return;
+                }
 
                 using (BinaryWriter output = new BinaryWriter(new FileStream(Location, FileMode.Create)))
                 {
@@ -178,7 +197,7 @@ namespace Support
         /// <returns>The primary keys,.</returns>
         public IEnumerable<object> Where<T>(string column, Func<T, bool> predicate)
         {
-            int column_index = Array.IndexOf(prototype.Columns, column);
+            int column_index = NameToIndex(column);
 
             if (column_index == -1)
             {
@@ -241,15 +260,75 @@ namespace Support
             return Where<T>(column, t => object.Equals(t, equals));
         }
 
+		/// <summary>
+		/// Gets all primary keys which rows match the required columns and objects.
+		/// </summary>
+		/// <param name="columns">The semi-colon separated columns.</param>
+		/// <param name="objs">The objects to check.</param>
+		/// <returns>All primary keys.</returns>
+		public IEnumerable<object> WhereEquals(string columns, params object[] objs)
+		{
+			string[] cols = columns.Split (';');
+			int[] col_indices = new int[cols.Length];
 
-        /// </remarks>
-        /// <param name="columns">The columns to compare against.</param>
-        /// <param name="equals">The values to compare against.</param>
-        /// <returns>The primary keys.</returns>
+			// check columns lengths
+			if (columns.Length != objs.Length)
+			{
+				throw new ArgumentException("Length mismatch between columns and objects");
+			}
+
+			// cache the column indices, and check if the columns are valid
+			for (int i = 0; i < columns.Length; i++)
+			{
+				col_indices [i] = NameToIndex(cols [i]);
+
+				if (col_indices[i] == -1)
+				{
+					throw new ArgumentException ("Invalid column '" + cols [i] + "'");
+				}
+			}
+
+			// for each row, return the row if it matches
+			foreach (object pk in Data.Keys)
+			{
+				bool matches = true;
+
+				object[] row = Data [pk];
+
+				// check each column if they're equal
+				for (int i = 0; i < cols.Length; i++)
+				{
+					if (!Equals (objs [i], row [col_indices [i]]))
+					{
+						matches = false;
+						break;
+					}
+				}
+
+				if (matches)
+				{
+					// signals to the runtime that this method should stop running (temporarily)
+					// and return 'pk' to the for loop.
+					yield return pk;
+				}
+			}
+		}
+
         private static int WhereEqualsInt = 0;
-
-        public IEnumerable<object> WhereEquals(string[] columns, params int[] equals)
+		
+		/// <summary>
+		/// Gets all rows which equal a value.
+		/// 
+		/// Not thread safe.
+		/// </summary>
+		/// <param name="columns">The columns to compare against.</param>
+		/// <param name="equals">The values to compare against.</param>
+		/// <returns>The primary keys.</returns>
+        public IEnumerable<object> WhereEquals2(string[] columns, params int[] equals)
         {
+			// you guys really should've commented this, it took me a couple
+			// minutes to figure out what this was doing
+
             DatabaseManager databaseManager = new DatabaseManager();
             DatabaseTable tmpTable = databaseManager["Appointments"];
 
@@ -272,7 +351,7 @@ namespace Support
             else
             {
                 WhereEqualsInt++;
-                return tmpTable.WhereEquals(columns, equals);
+                return tmpTable.WhereEquals2(columns, equals);
             }
 
             WhereEqualsInt = 0;
@@ -287,7 +366,7 @@ namespace Support
         /// <returns>The maximum value.</returns>
         public int GetMaximum(string column)
         {
-            int column_index = Array.IndexOf(prototype.Columns, column);
+            int column_index = NameToIndex(column);
 
             if (column_index == -1)
             {
@@ -323,7 +402,7 @@ namespace Support
         {
             get {
 
-                int column_index = Array.IndexOf(prototype.Columns, column);
+                int column_index = NameToIndex(column);
 
                 if(column_index == -1)
                 {
@@ -391,6 +470,17 @@ namespace Support
 			}
 		}
 
+        /// <summary>
+        /// Gets the index for a column by name.
+        /// </summary>
+        /// <param name="name">The column name.</param>
+        /// <returns>The column index, or -1 if it doesn't exist.</returns>
+        private int NameToIndex(string name)
+        {
+            return prototype.ColumnsReverse.ContainsKey(name) ? 
+                    prototype.ColumnsReverse[name] : -1;
+        }
+
 	}
 
 	/// <summary>
@@ -410,7 +500,7 @@ namespace Support
 		public string[] Columns { get; protected set; }
 
         /// <summary>
-        /// A lookup
+        /// A lookup to help with finding the index of a column.
         /// </summary>
 		public readonly Dictionary<string, int> ColumnsReverse = new Dictionary<string, int>();
 
@@ -420,17 +510,40 @@ namespace Support
 
 		public bool ReadOnly { get; protected set; }
 
-		private static Dictionary<Type, Func<BinaryReader, object>> Readers =
-			new Dictionary<Type, Func<BinaryReader, object>>();
-
-		private static Dictionary<Type, Action<BinaryWriter, object>> Writers =
-			new Dictionary<Type, Action<BinaryWriter, object>>();
-
 		protected Func<BinaryReader, object>[] ColumnReaders;
 
 		protected Action<BinaryWriter, object>[] ColumnWriters;
 
-		static DatabaseTablePrototype()
+        /// <summary>
+        /// A custom reader for this database table.
+        /// </summary>
+        /// <remarks>
+        /// When specified, <see cref="LoadRowImpl(BinaryReader)"/> is not called.
+        /// </remarks>
+        public Action<DatabaseTable, string> CustomReader { get; protected set; }
+
+        /// <summary>
+        /// A custom writer for this database table.
+        /// </summary>
+        /// <remarks>
+        /// When specified, <see cref="SaveRowImpl(BinaryReader)"/> is not called.
+        /// </remarks>
+        public Func<DatabaseTable, string> CustomWriter { get; protected set; }
+
+        /// <summary>
+        /// All pre-defined readers.
+        /// </summary>
+        private static Dictionary<Type, Func<BinaryReader, object>> Readers =
+            new Dictionary<Type, Func<BinaryReader, object>>();
+
+        /// <summary>
+        /// All pre-defined writers.
+        /// </summary>
+        private static Dictionary<Type, Action<BinaryWriter, object>> Writers =
+            new Dictionary<Type, Action<BinaryWriter, object>>();
+
+
+        static DatabaseTablePrototype()
 		{
 			Readers [typeof(string)] = r => r.ReadString ();
 			Writers [typeof(string)] = (w, o) => w.Write ((string)o);
@@ -514,246 +627,6 @@ namespace Support
 			}
 		}
 	}
-
-	/// <summary>
-	/// An example table prototype.
-	/// </summary>
-	class TestTable: DatabaseTablePrototype
-	{
-
-		#region implemented abstract members of DatabaseTablePrototype
-
-		public TestTable ():
-			base(2)
-		{
-			Name = "TestTable";
-
-			Columns = new string[]{"pk", "one"};
-
-			ColumnTypes = new Type[] { typeof(Int32), typeof(string) };
-
-			PrimaryKeyIndex = 0;
-
-			base.PostInit ();
-		}
-
-		#endregion
-
-	}
-	
-	/// <summary>
-	/// The prototype for the patient table.
-	/// </summary>
-	/// <remarks>
-	/// Fields:
-	/// Int32 - PatientID (PK)
-	/// string - HCN
-	/// string - lastName
-	/// string - firstName
-	/// char - mInitial
-	/// string- dateBirth
-	/// SexTypes - sex
-	/// Int32 - HouseID (FK for household)
-	/// </remarks>
-	class PeopleTable: DatabaseTablePrototype
-	{
-
-		#region implemented abstract members of DatabaseTablePrototype
-
-		public PeopleTable ():
-			base(8)
-		{
-			Name = "Patients";
-
-			Columns = new string[]{
-				"PatientID",
-				"HCN",
-				"lastName",
-				"firstName",
-				"mInitial",
-				"dateBirth",
-				"sex",
-				"HouseID"
-			};
-
-			ColumnTypes = new Type[] {
-				typeof(Int32),
-				typeof(string),
-				typeof(string),
-				typeof(string),
-				typeof(char),
-				typeof(string),
-				typeof(SexTypes),
-				typeof(Int32)
-			};
-
-			ColumnReaders [6] = (r) => (SexTypes)r.ReadInt32();
-
-			ColumnWriters [6] = (r, o) => r.Write(Convert.ToInt32(o));
-
-			PrimaryKeyIndex = 0;
-
-			base.PostInit ();
-		}
-
-		#endregion
-
-	}
-
-	/// <summary>
-	/// The prototype for the appointment table.
-	/// </summary>
-	class AppointmentTable: DatabaseTablePrototype
-	{
-		#region implemented abstract members of DatabaseTablePrototype
-		
-		public AppointmentTable ():
-			base(7)
-		{
-			Name = "Appointments";
-
-			Columns = new string[]{
-				"AppointmentID",
-				"Month",
-				"Week",
-				"Day",
-				"TimeSlot",
-				"PatientID",
-				"CaregiverID"
-			};
-
-			ColumnTypes = new Type[] {
-				typeof(Int32),
-				typeof(Int32),
-				typeof(Int32),
-				typeof(Int32),
-				typeof(Int32),
-				typeof(Int32),
-				typeof(Int32)
-			};
-
-			PrimaryKeyIndex = 0;
-
-			base.PostInit ();
-		}
-
-		#endregion
-
-
-	}
-
-	/// <summary>
-	/// The prototype for the household table.
-	/// </summary>
-	class HouseholdTable: DatabaseTablePrototype
-	{
-		#region implemented abstract members of DatabaseTablePrototype
-
-		public HouseholdTable ():
-			base(7)
-		{
-			Name = "Household";
-
-			Columns = new string[]{
-				"HouseID",
-				"addressLine1",
-				"addressLine2",
-				"city",
-				"province",
-				"numPhone",
-				"HeadOfHouseHCN"
-			};
-
-			ColumnTypes = new Type[] {
-				typeof(Int32),
-				typeof(string),
-				typeof(string),
-				typeof(string),
-				typeof(string),
-				typeof(string),
-				typeof(string)
-			};
-
-			PrimaryKeyIndex = 0;
-
-			base.PostInit ();
-		}
-
-		#endregion
-
-
-	}
-	
-    /// <summary>
-    /// The table which represents all billing info.
-    /// </summary>
-	class BillingMasterTable: DatabaseTablePrototype
-	{
-		#region implemented abstract members of DatabaseTablePrototype
-
-		public BillingMasterTable():
-			base(3)
-		{
-			Name = "BillingMaster";
-
-			Columns = new string[]{"BillingCode", "EffectiveDate", "DollarAmount"};
-
-			ColumnTypes = new Type[] { typeof(string), typeof(string), typeof(string)};
-
-			PrimaryKeyIndex = 0;
-
-			ReadOnly = true;
-
-			base.PostInit ();
-		}
-
-		public override object[] LoadRowImpl (BinaryReader reader)
-		{
-			// binaryreaders can't read a line, so a streamreader should be used
-			StreamReader input = new StreamReader (reader.BaseStream);
-
-			//input.readline should be called once, then the string should be parsed
-
-			return null;
-		}
-
-		public override void SaveRowImpl (BinaryWriter writer, object[] row)
-		{
-			// table is read-only, do nothing
-		}
-
-		#endregion
-
-	}
-
-    class BillingCodeTable : DatabaseTablePrototype
-    {
-        public BillingCodeTable() : base(6)
-        {
-            Name = "Billing";
-
-            Columns = new string[] { "AppointmentID", "DateOfService", "HCN", "Gender", "BillingCode", "Fee"};
-
-            ColumnTypes = new Type[] {
-                typeof(Int32),
-                typeof(string),
-                typeof(string),
-                typeof(SexTypes),
-                typeof(string),
-                typeof(string)
-            };
-
-            ColumnReaders[6] = (r) => (SexTypes)r.ReadInt32();
-
-            ColumnWriters[6] = (r, o) => r.Write(Convert.ToInt32(o));
-
-            PrimaryKeyIndex = 0;
-
-            base.PostInit();
-        }
-
-
-    }
 
 }
 
