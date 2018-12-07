@@ -7,20 +7,6 @@ using System.Threading.Tasks;
 
 namespace SchedulingUI
 {
-    /// <summary>
-    /// Handles the interface for scheduling a patient.
-    /// </summary>
-    /// <remarks>
-    /// Workflow:
-    /// 
-    /// Select a timeslot
-    /// 
-    /// Find the patient & caregiver
-    /// 
-    /// </remarks>
-    public class SchedulingController
-    {
-    }
 
     /// <summary>
     /// Gets a timeslot from the user.
@@ -121,7 +107,7 @@ namespace SchedulingUI
         //Added 0 for the month
         private AptTimeSlot aptTimeSlot = new AptTimeSlot(0, 0, 0, 0);
 
-        public event EventHandler<ReferenceArgs<IEnumerable<object>>> Finish;
+        public event EventHandler<ReferenceArgs<Dictionary<string, object>>> Finish;
 
         public string Name => "TimeSlot-Selector";
 
@@ -257,5 +243,5 @@ namespace SchedulingUI
             controller.Deactivate();
         }
     }
-    
+
 }
