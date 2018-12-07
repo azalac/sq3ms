@@ -272,13 +272,13 @@ namespace Support
 			int[] col_indices = new int[cols.Length];
 
 			// check columns lengths
-			if (columns.Length != objs.Length)
+			if (cols.Length != objs.Length)
 			{
 				throw new ArgumentException("Length mismatch between columns and objects");
 			}
 
 			// cache the column indices, and check if the columns are valid
-			for (int i = 0; i < columns.Length; i++)
+			for (int i = 0; i < cols.Length; i++)
 			{
 				col_indices [i] = NameToIndex(cols [i]);
 
@@ -378,7 +378,7 @@ namespace Support
                 throw new ArgumentException("Column '" + column + "' is type " + prototype.ColumnTypes[column_index] + " not int");
             }
 
-            int max = int.MinValue;
+            int max = 0;
 
             foreach(Tuple<object, object> row in this[column])
             {
