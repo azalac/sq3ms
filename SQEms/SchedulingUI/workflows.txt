@@ -1,6 +1,18 @@
 schedule:
 	pick a time
+	'SEARCH BY':
+		Last Name
+		Full Name
+		Phone Number
+		HCN
+		- On Not Found, Ask 'Add Person'
 	pick a patient
+	'SEARCH BY':
+		Last Name
+		Full Name
+		Phone Number
+		HCN
+		- On Not Found, Ask 'Add Person'
 	(optional) pick a caregiver
 
 billing codes:
@@ -8,18 +20,30 @@ billing codes:
 	add or remove codes
 	recall in 1, 2, 3 weeks
 
+billing file:
+	pick a month
+	
+
 reconcile:
-	pick a file path
+	pick a 
 	[file is processed - no user interaction]
 	OR
 	user alerted of error, asked to retry or exit module
 
 summary:
-	pick a month
+	pick a month (by name + the year (2017 default))
+	pick an output file
 
 add person:
 	find/add household
 	Enter HCN, name, DOB, sex
 
 add household:
-	Enter address 1,2, city, province, phone number, head-of-house HCN
+	'SEARCH BY':
+		Last Name
+		Full Name
+		Phone Number
+		HCN
+		- On Not Found, Ask 'Add Person'
+	pick a head-of-house
+	Enter address 1,2, city, province, phone number
