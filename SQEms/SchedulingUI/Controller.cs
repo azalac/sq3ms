@@ -35,6 +35,14 @@ namespace SchedulingUI
     }
 
     /// <summary>
+    /// A wrapper which 
+    /// </summary>
+    /// <param name="name"></param>
+    /// <param name="arguments"></param>
+    /// <returns></returns>
+    public delegate IEnumerable<object> ControllerActivate(string name, params object[] arguments);
+
+    /// <summary>
     /// Controls multiple <see cref="IInterfaceContent"/>s and handles their
     /// activation.
     /// </summary>
@@ -220,6 +228,11 @@ namespace SchedulingUI
         string Name { get; }
 
         /// <summary>
+        /// Called when this content finishes.
+        /// </summary>
+        event EventHandler<ReferenceArgs<IEnumerable<object>>> Finish;
+
+        /// <summary>
         /// Initializes this interface content.
         /// </summary>
         /// <param name="root">The root container</param>
@@ -384,6 +397,8 @@ namespace SchedulingUI
 
         private Calendar calendar = new Calendar();
 
+        public event EventHandler<ReferenceArgs<IEnumerable<object>>> Finish;
+
         public DefaultContent(Reference<int> CurrentWeek)
         {
             calendar.CurrentWeek = CurrentWeek;
@@ -397,6 +412,8 @@ namespace SchedulingUI
             Second = calendar;
 
             Add(menu, calendar);
+
+            menu.Action += (sender, args) => Finish(this, new ReferenceArgs<IEnumerable<object>>(new string[] { args.Value }));
         }
 
         public void Initialize(RootContainer root)
@@ -429,6 +446,11 @@ namespace SchedulingUI
 
         private string[] button_names;
 
+        /// <summary>
+        /// Invoked when an option is selected.
+        /// </summary>
+        public event EventHandler<ReferenceArgs<string>> Action;
+
         public Menu(params string[] button_names)
         {
             this.button_names = button_names;
@@ -442,6 +464,8 @@ namespace SchedulingUI
                 {
                     Text = button_names[i]
                 };
+
+                buttons[i].Action += (sender, args) => Action(sender, new ReferenceArgs<string>(button_names[i]));
 
                 controller.Add(buttons[i]);
                 Add(buttons[i]);

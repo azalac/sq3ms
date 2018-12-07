@@ -477,6 +477,87 @@ namespace SchedulingUI
     }
 
     /// <summary>
+    /// Lays out three children vertically or horizontally. Only respects the first and third's
+    /// preferred size, while the second gets the remaining area.
+    /// </summary>
+    public class TernaryContainer : Container
+    {
+        /// <summary>
+        /// If this container should lay out children vertically or horizontally.
+        /// </summary>
+        public bool Vertical { get; set; }
+
+        /// <summary>
+        /// The first component (must be a child of the container)
+        /// </summary>
+        public IComponent First { get; set; }
+
+        /// <summary>
+        /// The second component (must be a child of the container)
+        /// </summary>
+        public IComponent Second { get; set; }
+
+        public IComponent Third { get; set; }
+
+        protected override void DoLayoutImpl()
+        {
+            // this container must contain all components
+            if(!Components.Contains(First) || !Components.Contains(Second) || !Components.Contains(Third))
+            {
+                System.Diagnostics.Debug.WriteLine("Warning: one of TernaryContainer's components aren't in the container");
+                return;
+            }
+            
+            if(Vertical)
+            {
+                LayoutVertical(First, Second, Third);
+            }
+            else
+            {
+                LayoutHorizontal(First, Second, Third);
+            }
+        }
+
+        private void LayoutVertical(IComponent first, IComponent second, IComponent third)
+        {
+            first.Left = Left;
+            first.Top = Top;
+            first.Width = Width;
+            first.Height = Math.Min(Height, first.PreferredHeight);
+
+            third.Left = Left;
+            third.Width = Width;
+            third.Height = Math.Min(Height - first.Height, third.PreferredHeight);
+
+            second.Left = Left;
+            second.Top = Top + first.Height;
+            second.Width = Width;
+            second.Height = Height - first.Height - third.Height;
+
+            third.Top = Top + first.Height + second.Height;
+        }
+
+        private void LayoutHorizontal(IComponent first, IComponent second, IComponent third)
+        {
+            first.Left = Left;
+            first.Top = Top;
+            first.Width = Math.Min(Width, first.PreferredWidth);
+            first.Height = Height;
+
+            third.Top = Top;
+            third.Width = Math.Min(Width - first.Width, third.PreferredWidth);
+            third.Height = Height;
+
+            second.Left = Left + first.Width;
+            second.Top = Top;
+            second.Width = Width - first.Width - third.Width;
+            second.Height = Height;
+
+            third.Left = Left + first.Width + second.Width;
+        }
+    }
+
+    /// <summary>
     /// Lays out two children vertically or horizontally. Only respects the first's
     /// preferred size, while the second gets the remaining area.
     /// </summary>
@@ -500,13 +581,13 @@ namespace SchedulingUI
         protected override void DoLayoutImpl()
         {
             // this container must contain both components
-            if(!Components.Contains(First) || !Components.Contains(Second))
+            if (!Components.Contains(First) || !Components.Contains(Second))
             {
                 System.Diagnostics.Debug.WriteLine("Warning: BinaryContainer's first & second aren't in the container");
                 return;
             }
-            
-            if(Vertical)
+
+            if (Vertical)
             {
                 LayoutVertical(First, Second);
             }

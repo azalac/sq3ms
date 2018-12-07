@@ -34,7 +34,6 @@
   <ItemGroup>
     <Compile Include="BillingCodeEntry.cs" />
     <Compile Include="BillingMasterEntry.cs" />
-    <Compile Include="MyClass.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Billing.cs" />
   </ItemGroup>
