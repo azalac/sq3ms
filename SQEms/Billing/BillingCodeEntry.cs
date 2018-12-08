@@ -123,8 +123,14 @@ namespace Billing
             //Convert object to string
             string patientHCN = info.ToString();
 
+            //Store the sex info in an object
+            object patientSex = patientInfo[ID, "sex"];
+
+            //Conver the object to a string
+            string sex = patientSex.ToString();
+
             //Create the billing code to send to text file - need to left pad final code and fee code
-            string tempBillingCode = date + patientHCN + feeCode + finalCost + "00";
+            string tempBillingCode = date + patientHCN + sex + feeCode + finalCost + "00";
 
             //Get the length of the billing file
             int length = tempBillingCode.Length;
@@ -139,7 +145,7 @@ namespace Billing
             }
 
             //Generate the final response code to send to the ministry
-            string finalResponse = date + patientHCN + feeCode + zeroPadded + finalCost + "00";
+            string finalResponse = date + patientHCN + sex + feeCode + zeroPadded + finalCost + "00";
 
             //either return finalResponse or write to a text file (path param)
         }
