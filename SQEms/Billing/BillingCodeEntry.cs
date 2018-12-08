@@ -52,16 +52,32 @@ namespace Billing
         /// <param name="database"> Used to obtain the information for billing code</param>
         /// <param name="path"> Path of the billing code</param>
 
-        public static void CreateBillingCode(DatabaseManager database, string path, string feeCode, object appID)
+        public void CreateBillingCode(DatabaseManager database, string path, string feeCode, object appID)
         {
-            int ID = (int)appID;
+
+            //Create a new instance of the log class - used for errors
+            Logging logger = new Logging();
+
+            //Get the appointment ID passed in
+            int ID;
+
+            //Try and convert the object to an int(if not an int already)
+            try
+            {
+                ID = (int)appID;
+            }
+            catch (Exception)
+            {
+
+                //Log the error
+                logger.Log(LoggingInfo.ErrorLevel.ERROR, "Could not successfully parse the appointment ID");
+                return;
+            }
+
 
             //Gets the current date of service
             string date = GetDateOfService();
 
-            //Create a new instance of the log class - used for errors
-            Logging logger = new Logging();
-            
             //Set database table variables with information 
             DatabaseTable Master = database["BillingMaster"];
             DatabaseTable testBilling = database["Billing"];
@@ -76,12 +92,13 @@ namespace Billing
             }
 
             //If the feeCode doesn't exist
-            catch(InvalidOperationException)
+            catch (InvalidOperationException)
             {
+                //Log the error
                 logger.Log(LoggingInfo.ErrorLevel.ERROR, "Billing Code was not found in database");
                 return;
             }
-            
+
             //Convert the name of the object to a string
             string BillName = name.ToString();
 
@@ -91,10 +108,11 @@ namespace Billing
             //Convert the cost of the object to a string
             string costWithDecimal = cost.ToString();
 
+            //Create a string array to split the cost to get rid of decimal
             string[] numSplit = costWithDecimal.Split('.');
 
+            //Combine the left side and right side of cost
             string finalCost = numSplit[0] + numSplit[1];
-
 
             //Create an instance of the patients table to obtain health card with patient ID
             DatabaseTable patientInfo = database["Patients"];
@@ -106,16 +124,26 @@ namespace Billing
             string patientHCN = info.ToString();
 
             //Create the billing code to send to text file - need to left pad final code and fee code
-            string billingFile = date + patientHCN + feeCode + finalCost + "00";
+            string tempBillingCode = date + patientHCN + feeCode + finalCost + "00";
 
             //Get the length of the billing file
-            int length = billingFile.Length;
+            int length = tempBillingCode.Length;
 
-            //Length is 36 characters long for file, subtract what we have, the remaining number is how many zeroes needed for left padding
+            //A string to hold the number of 0's needed to pad the cost
+            string zeroPadded = "";
 
-            Console.WriteLine(billingFile);
+            //Loop through and get the number of zeroes needed to pad cost (if number is huge, not a lot of zeroes, etc)
+            for (int padLength = length; padLength < 36; padLength++)
+            {
+                zeroPadded = zeroPadded + "0";
+            }
 
+            //Generate the final response code to send to the ministry
+            string finalResponse = date + patientHCN + feeCode + zeroPadded + finalCost + "00";
+
+            //either return finalResponse or write to a text file (path param)
         }
+
 
 
 
