@@ -1,4 +1,10 @@
-using System;
+/*
+* FILE          : Billing.cs
+* PROJECT       : INFO-2180 Software Quality 1, Term Project
+* PROGRAMMER    : Blake Ribble and Austin Zalac
+* FIRST VERSION : November 23, 2018
+*/
+
 using System.Collections.Generic;
 using Support;
 using System.Linq;
@@ -11,23 +17,17 @@ namespace Billing
 	public class Billing
     {
 
-        /*
-         * I'm not sure about the proper way to go about billing handling, so I
-         * just stuck these methods in here. There's two ways I could do it. The first
-         * is this way, with many billing codes with a foreign key to the appointment.
-         * The second is to have a single billing entry and with two fields, a string[]
-         * and a BillingCodeResponse[].
-         * 
-         * The second would be faster, but at our sample sizes, it would be millisecond
-         * differences.
-         */
-
+        //Create class level variables
         private readonly DatabaseTable BillingEntries;
         private readonly DatabaseTable BillingMaster;
         private readonly DatabaseTable Appointments;
         private readonly DatabaseTable Patients;
 
-
+        /// <summary>
+        /// Constructor that initializes class level variables
+        /// </summary>
+        /// <param name="database"> Used to obtain the information from database</param>
+        /// 
         public Billing(DatabaseManager database)
         {
             BillingEntries = database["Billing"];
@@ -61,6 +61,7 @@ namespace Billing
             //Get key of Patients where PatientID = PatientID in Appointments
             key = Patients.WhereEquals("PatientID", Appointments[AppPK, "PatientID"]).First();
 
+            //Parse information
             int.TryParse(key.ToString(), out int Ppk);
 
             //Get HCN and sex
@@ -73,10 +74,11 @@ namespace Billing
             //Get fee from BillinMaster
             string fee = BillingMaster[key, "DollarAmount"].ToString();
 
-
+            //Set the ministry reponse to none
             object codeResponse = Definitions.BillingCodeResponse.NONE;
 
-            BillingEntries.Insert(billingID, AppointmentID, date, HCN, sex, code, fee, codeResponse);
+            //Insert the information into the database
+            BillingEntries.Insert(billingID, AppointmentID, date, HCN, sex, code, fee, codeResponse);            
         }
 
         /// <summary>
@@ -86,6 +88,7 @@ namespace Billing
         /// <param name="code">The billing code</param>
         public void RemoveBillingCode(int AppointmentID, string code)
         {
+            //Loop through each key and delete the row if value is the same as what is being searched for
             foreach (object key in BillingEntries.WhereEquals("AppointmentID", AppointmentID))
             {
                 if (BillingEntries[key, "BillingCode"].ToString() == code)
@@ -102,13 +105,12 @@ namespace Billing
         /// <returns>All billing entries for the appointment</returns>
         public IEnumerable<int> FindBillingEntries(int AppointmentID)
         {
-
+            //Loop through each entry to check value that matches appointment ID by searched for
             foreach (object key in BillingEntries.WhereEquals("AppointmentID", AppointmentID))
             {
                 int.TryParse(key.ToString(), out int pk);
                 yield return pk;
             }
-
             yield break;
         }
     }
