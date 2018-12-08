@@ -74,22 +74,7 @@ namespace Billing
             string fee = BillingMaster[key, "DollarAmount"].ToString();
 
 
-
-
-
-
-
-
-            // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! NULL breaks code What should be here??????????????????????????????????????
-
-
-
-
-
-
-
-
-            object codeResponse = Definitions.BillingCodeResponse.PAID;
+            object codeResponse = Definitions.BillingCodeResponse.NONE;
 
             BillingEntries.Insert(billingID, AppointmentID, date, HCN, sex, code, fee, codeResponse);
         }
