@@ -494,6 +494,83 @@ namespace SchedulingUI
 
 	}
 
+    public class ScrollableContainer : Container
+    {
+        public int ComponentHeight { get; set; }
+
+        private int TotalHeight
+        {
+            get
+            {
+                return ComponentHeight * Components.Count;
+            }
+        }
+
+        private int scroll;
+
+        public void ScrollUp()
+        {
+            scroll--;
+            if(scroll < 0)
+            {
+                scroll = 0;
+            }
+        }
+
+        public void ScrollDown()
+        {
+            scroll++;
+            if(scroll + Height > TotalHeight)
+            {
+                scroll = TotalHeight - Height;
+            }
+        }
+
+        public void ScrollTo(IComponent c)
+        {
+            int i = Components.IndexOf(c);
+
+            if(i == -1)
+            {
+                throw new ArgumentException("c is not a component in this scrollcontainer");
+            }
+
+            scroll = i * ComponentHeight;
+
+            if (scroll < 0)
+            {
+                scroll = 0;
+            }
+
+            if (scroll + Height > TotalHeight)
+            {
+                scroll = TotalHeight - Height;
+            }
+        }
+
+        protected override void DoLayoutImpl()
+        {
+            for(int i = 0; i < Components.Count; i++)
+            {
+                IComponent c = Components[i];
+
+                c.Left = Left;
+                c.Width = Width;
+
+                c.Top = ComponentHeight * i - scroll;
+                c.Height = ComponentHeight;
+            }
+        }
+
+        /// <summary>
+        /// Only draws the components in this buffer.
+        /// </summary>
+        public override void Draw(IConsole buffer)
+        {
+            base.Draw(buffer.CreateSubconsole(Left, Top, Width, Height));
+        }
+    }
+
     /// <summary>
     /// An event args which contains an InputController
     /// </summary>

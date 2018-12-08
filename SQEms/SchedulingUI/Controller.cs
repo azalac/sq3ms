@@ -7,129 +7,23 @@ using System.Diagnostics;
 namespace SchedulingUI
 {
     /// <summary>
-    /// A reference to another object.
-    /// </summary>
-    /// <typeparam name="T">The type to reference</typeparam>
-    public class Reference<T>
-    {
-        public T Value;
-
-        public Reference(T initial = default(T))
-        {
-            Value = initial;
-        }
-    }
-
-    /// <summary>
-    /// An event args which references an object
-    /// </summary>
-    /// <typeparam name="T">The type to reference</typeparam>
-    public class ReferenceArgs<T> : EventArgs
-    {
-        public T Value;
-
-        public ReferenceArgs(T initial = default(T))
-        {
-            Value = initial;
-        }
-    }
-
-    /// <summary>
-    /// A wrapper which 
-    /// </summary>
-    /// <param name="name"></param>
-    /// <param name="arguments"></param>
-    /// <returns></returns>
-    public delegate IEnumerable<object> ControllerActivate(string name, params object[] arguments);
-
-    /// <summary>
-    /// Controls multiple <see cref="IInterfaceContent"/>s and handles their
-    /// activation.
-    /// </summary>
-    public class InterfaceContentController
-    {
-        private Dictionary<string, IInterfaceContent> content = new Dictionary<string, IInterfaceContent>();
-
-        private IInterfaceContent last = null;
-
-        public string Default { get; set; }
-
-        public event EventHandler<ReferenceArgs<IInterfaceContent>> ContentChanged;
-
-        public void Add(IInterfaceContent c)
-        {
-            content[c.Name] = c;
-        }
-
-        public void Activate(string name)
-        {
-            if(!content.ContainsKey(name))
-            {
-                throw new ArgumentException("Interface Content '" + name + "' not registered");
-            }
-
-            if(last != null)
-            {
-                last.Deactivate();
-            }
-
-            last = content[name];
-
-            last.Activate();
-
-            if (ContentChanged != null)
-            {
-                ContentChanged(this, new ReferenceArgs<IInterfaceContent>(last));
-            }
-        }
-
-        public void Deactivate()
-        {
-            if(last != null)
-            {
-                last.Deactivate();
-                last = null;
-            }
-
-            if (Default != null)
-            {
-                Activate(Default);
-            }
-            else
-            {
-                if (ContentChanged != null)
-                {
-                    ContentChanged(this, new ReferenceArgs<IInterfaceContent>(null));
-                }
-            }
-
-        }
-
-    }
-
-    /// <summary>
     /// The main class for the interface controllers
     /// </summary>
     public class InterfaceStart
     {
-        private RootContainer root;
+        private RootContainer Root;
 
-        private KeyboardInput input;
+        private KeyboardInput UserInput;
 
-        private WeekHeader header;
+        private WeekHeader Header;
 
         private TabbedPane Content = new TabbedPane();
 
         private InterfaceContentController ContentController = new InterfaceContentController();
 
-        private DefaultContent default_content;
-
-        private TimeSlotSelectionController TimeSlotContent;
-
-        /// <summary>
-        /// Change this to be default false to see the TimeSlotSelector prototpy.
-        /// </summary>
-        private Reference<bool> OnHomeScreen = new Reference<bool>(true);
+        private InterfaceWorkflowController WorkflowController;
+        
+        private Reference<bool> OnHomeScreen = new Reference<bool>(false);
 
         public InterfaceStart(IConsole buffer)
         {
@@ -137,39 +31,46 @@ namespace SchedulingUI
 
             InitializeContent();
 
-            ContentController.Activate(TimeSlotContent.Name);
+            InitializeWorkflows();
 
-            root.DoLayout();
+            Root.DoLayout();
 
-            root.Draw();
+            Root.Draw();
             
-            input.StartThread();
+            UserInput.StartThread();
         }
-        
+
+        private void HandleMenuSelect(object sender, ReferenceArgs<Dictionary<string, object>> e)
+        {
+            WorkflowController.InvokeWorkflow((string)e.Value["option"]);
+        }
+
         /// <summary>
         /// Initializes the root components.
         /// </summary>
         private void InitializeRoot(IConsole buffer)
         {
-            root = new RootContainer(buffer);
+            Root = new RootContainer(buffer);
 
-            input = new KeyboardInput(root)
+            UserInput = new KeyboardInput(Root)
             {
                 ExitKey = ConsoleKey.Escape
             };
 
-            header = new WeekHeader(OnHomeScreen);
+            Header = new WeekHeader(OnHomeScreen);
             BinaryContainer root_container = new BinaryContainer()
             {
                 Vertical = true
             };
 
-            root_container.Add(header, Content);
+            root_container.Add(Header, Content);
 
-            root_container.First = header;
+            root_container.First = Header;
             root_container.Second = Content;
 
-            root.Add(root_container);
+            Root.Add(root_container);
+
+            WorkflowController = new InterfaceWorkflowController(ContentController);
         }
 
         /// <summary>
@@ -177,12 +78,26 @@ namespace SchedulingUI
         /// </summary>
         private void InitializeContent()
         {
-            default_content = new DefaultContent(header.Week);
+            DefaultContent InitialContent = new DefaultContent(Header.Week);
 
-            TimeSlotContent = new TimeSlotSelectionController();
+            InitialContent.Finish += HandleMenuSelect;
 
-            ContentController.Add(default_content);
-            ContentController.Add(TimeSlotContent);
+            TimeSlotSelectionController TimeSlotContent = new TimeSlotSelectionController();
+
+            CancelRequestController cancel = new CancelRequestController();
+
+            ButtonSelector select = new ButtonSelector("select", 2, "one", "two", "three");
+
+            select.SetActionFinishes("one", "option", 1);
+            select.SetActionFinishes("two", "option", 2);
+            select.SetActionFinishes("three", "option2", 3);
+
+            select.Message = "This is a message";
+
+            AddContent(InitialContent);
+            AddContent(TimeSlotContent);
+            AddContent(cancel);
+            AddContent(select);
 
             ContentController.ContentChanged += (object sender, ReferenceArgs<IInterfaceContent> args) =>
             {
@@ -190,17 +105,55 @@ namespace SchedulingUI
                 {
                     Content.SetSelected(c);
                 }
+
+                OnHomeScreen.Value = args.Value.Name == "Default";
+                
             };
             
-            ContentController.Default = default_content.Name;
+            ContentController.Default = InitialContent.Name;
 
-            Content.Add(default_content);
-            Content.Add(TimeSlotContent);
+            ContentController.Activate(ContentController.Default);
+
+        }
+
+        private void InitializeWorkflows()
+        {
+            WorkflowController.AddWorkflow("Schedule Apt", "select;select", Accept, Validate, Validate);
+        }
+        
+        private bool Validate(Dictionary<string, object> values, out string error_msg)
+        {
+            if(InterfaceWorkflowController.CheckEquals(values, "option", 1))
+            {
+                error_msg = "Option cannot be 1";
+                return false;
+            }
+
+            error_msg = "";
+            return true;
+        }
+
+        private void Accept(Dictionary<string, object> values)
+        {
+            Debug.WriteLine(values);
+        }
+        
+        private void AddContent(object obj)
+        {
+            if(obj is IInterfaceContent icontent && obj is IComponent component)
+            {
+                ContentController.Add(icontent);
+                Content.Add(component);
+            }
+            else
+            {
+                throw new ArgumentException("Object is not an IInterfaceContent or IComponent");
+            }
         }
 
         public void WaitUntilExit()
         {
-            input.InternalThread.Join();
+            UserInput.InternalThread.Join();
         }
 
         public static void InitConsole()
@@ -217,38 +170,6 @@ namespace SchedulingUI
 
     }
     
-    /// <summary>
-    /// An interface which represents content for the UI.
-    /// </summary>
-    public interface IInterfaceContent
-    {
-        /// <summary>
-        /// This content's name.
-        /// </summary>
-        string Name { get; }
-
-        /// <summary>
-        /// Called when this content finishes.
-        /// </summary>
-        event EventHandler<ReferenceArgs<IEnumerable<object>>> Finish;
-
-        /// <summary>
-        /// Initializes this interface content.
-        /// </summary>
-        /// <param name="root">The root container</param>
-        void Initialize(RootContainer root);
-
-        /// <summary>
-        /// Activates this interface content.
-        /// </summary>
-        void Activate();
-
-        /// <summary>
-        /// Deactivates this interface content.
-        /// </summary>
-        void Deactivate();
-    }
-
     /// <summary>
     /// The week header at the top of the console.
     /// </summary>
@@ -388,7 +309,7 @@ namespace SchedulingUI
     {
         public string Name => "Default";
 
-        private Menu menu = new Menu("Schedule Apt", "Billing", "Summary")
+        private Menu menu = new Menu("Schedule Apt", "Billing", "Summary", "Add Patient")
         {
             CountY = 6,
             PreferredWidth = 13,
@@ -397,7 +318,7 @@ namespace SchedulingUI
 
         private Calendar calendar = new Calendar();
 
-        public event EventHandler<ReferenceArgs<IEnumerable<object>>> Finish;
+        public event EventHandler<ReferenceArgs<Dictionary<string, object>>> Finish;
 
         public DefaultContent(Reference<int> CurrentWeek)
         {
@@ -413,7 +334,17 @@ namespace SchedulingUI
 
             Add(menu, calendar);
 
-            menu.Action += (sender, args) => Finish(this, new ReferenceArgs<IEnumerable<object>>(new string[] { args.Value }));
+            menu.Action += Finish_Action;
+        }
+
+        private void Finish_Action(object sender, ReferenceArgs<string> e)
+        {
+            Dictionary<string, object> values = new Dictionary<string, object>()
+            {
+                ["option"] = e.Value
+            };
+
+            Finish(this, new ReferenceArgs<Dictionary<string, object>>(values));
         }
 
         public void Initialize(RootContainer root)
@@ -431,69 +362,6 @@ namespace SchedulingUI
             menu.Deactivate();
         }
 
-    }
-
-    /// <summary>
-    /// The menu on the left side of the default screen.
-    /// </summary>
-    class Menu : GridContainer
-    {
-        public AppointmentScheduler Scheduler { get; set; }
-
-        InputController controller = new InputController();
-
-        private Button[] buttons;
-
-        private string[] button_names;
-
-        /// <summary>
-        /// Invoked when an option is selected.
-        /// </summary>
-        public event EventHandler<ReferenceArgs<string>> Action;
-
-        public Menu(params string[] button_names)
-        {
-            this.button_names = button_names;
-            buttons = new Button[button_names.Length];
-
-            controller.Parent = this;
-            
-            for (int i = 0; i < button_names.Length; i++)
-            {
-                buttons[i] = new Button()
-                {
-                    Text = button_names[i]
-                };
-
-                buttons[i].Action += (sender, args) => Action(sender, new ReferenceArgs<string>(button_names[i]));
-
-                controller.Add(buttons[i]);
-                Add(buttons[i]);
-            }
-
-            DrawBorders = true;
-
-        }
-        
-        public void RegisterAction(string button, EventHandler<ComponentEventArgs> evt)
-        {
-            buttons[Array.IndexOf(button_names, button)].Action += evt;
-        }
-
-        public void RemoveAction(string button, EventHandler<ComponentEventArgs> evt)
-        {
-            buttons[Array.IndexOf(button_names, button)].Action -= evt;
-        }
-
-        public void Activate()
-        {
-            controller.Activate();
-        }
-
-        public void Deactivate()
-        {
-            controller.Deactivate();
-        }
     }
 
     /// <summary>
@@ -566,4 +434,3 @@ namespace SchedulingUI
 
     }
 }
-

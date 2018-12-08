@@ -808,6 +808,8 @@ namespace SchedulingUI
         /// <param name="buffer"></param>
         public override void Draw(IConsole buffer)
         {
+            LineDrawer.GlobalReset(buffer);
+
             base.Draw(buffer);
 
             LineDrawer.GlobalDraw(buffer);

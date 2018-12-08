@@ -706,7 +706,12 @@ namespace SchedulingUI
 
         public void PushColors()
         {
-            colors.Push(new Tuple<ConsoleColor, ConsoleColor>(fg_last, bg_last));
+            Tuple<ConsoleColor, ConsoleColor> cols = new Tuple<ConsoleColor, ConsoleColor>(fg_last, bg_last);
+            colors.Push(cols);
+            if(colors.Peek() == null)
+            {
+                int a = 5;
+            }
         }
 
         public void PopColors()
@@ -714,6 +719,7 @@ namespace SchedulingUI
             // I'm getting an NPE in this function, so I need this to help with debugging
             // It only happens randomly (the best kind of bug...)
             int pre_count = colors.Count;
+            Tuple<ConsoleColor, ConsoleColor> _c = colors.Peek();
 
             Tuple<ConsoleColor, ConsoleColor> c = colors.Pop();
 
