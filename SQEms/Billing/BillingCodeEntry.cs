@@ -2,17 +2,15 @@
 * FILE          : BillingCodeEntry.cs
 * PROJECT       : INFO-2180 Software Quality 1, Term Project
 * PROGRAMMER    : Blake Ribble and Austin Zalac
-* FIRST VERSION : November 1, 2018
+* FIRST VERSION : November 23, 2018
 */
 
-using Demographics;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Definitions;
 using Support;
-using System.IO;    
+using System.IO;
 
 namespace Billing
 {
@@ -74,7 +72,6 @@ namespace Billing
                 logger.Log(LoggingInfo.ErrorLevel.ERROR, "Could not successfully parse the appointment ID");
                 return;
             }
-
 
             //Gets the current date of service
             string date = GetDateOfService();
@@ -165,9 +162,6 @@ namespace Billing
             }
         }
 
-
-
-
         /// <summary>
         /// Generates a monthly billing summary file.
         /// </summary>
@@ -186,6 +180,8 @@ namespace Billing
         /// </remarks>
         public void WriteStatistics(string path, int month)
         {
+
+            //Variables that hold information needed for report
             int totalEncounters = 0;
             int paidEncounters = 0;
             int toFollowEncounters = 0;
@@ -193,15 +189,17 @@ namespace Billing
             float receivedTotal = 0;
             float receivedPercentage = 0;
             float averageBilling = 0;
-
+            
+            //Loop through each billing code where the month is the month specified
             foreach(object key in billing.WhereEquals("Month", month))
             {
                 totalEncounters++;
 
+                //Convert the value
                 float.TryParse(billing[key, "Fee"].ToString(), out float billed);
                 billedProcedures += billed;
 
-
+                //If the result is paid
                 if ((BillingCodeResponse)billing[key, "CodeResponse"] == BillingCodeResponse.PAID)
                 {
                     paidEncounters++;
@@ -209,13 +207,16 @@ namespace Billing
                 }
             }
 
-
+            //Calculate the number of follow up encounters needed
             toFollowEncounters = totalEncounters - paidEncounters;
 
+            //Calculate the percentage of recieved profits
             receivedPercentage = (receivedTotal / totalEncounters) * 100;
+
+            //Calculate the average billing amount
             averageBilling = receivedTotal / totalEncounters;
 
-
+            //Build the report
             StringBuilder saveToFile = new StringBuilder();
             saveToFile.AppendFormat("Total Encounters Billed: {0}\n" +
                                     "Total Billed Procedures: {1}\n" +
@@ -225,10 +226,14 @@ namespace Billing
                                     "Encounters To Follow-up: {5}\n", 
                                     totalEncounters, billedProcedures, receivedTotal, receivedPercentage, averageBilling, toFollowEncounters);
 
+            //Write the information to a file
             WriteInfoToFile("../../MonthlyReport.txt", saveToFile.ToString());
-            //save to file
         }
-    
+
+        /// <summary>
+        /// Gets the current date in a specified format
+        /// </summary>
+        /// <returns>string strToday</returns>
         public static string GetDateOfService()
         {
             DateTime theDate = DateTime.Now;
