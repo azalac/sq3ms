@@ -52,7 +52,7 @@ namespace Billing
         /// <param name="database"> Used to obtain the information for billing code</param>
         /// <param name="path"> Path of the billing code</param>
 
-        public static void CreateBillingCode(DatabaseManager database, string path, string feeCode, object appID)
+        public void CreateBillingCode(DatabaseManager database, string path, string feeCode, object appID)
         {
             int ID = (int)appID;
 
