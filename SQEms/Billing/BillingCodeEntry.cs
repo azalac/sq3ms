@@ -50,9 +50,10 @@ namespace Billing
         /// Writes the billing information to the file at the given path.
         /// </summary>
         /// <param name="database"> Used to obtain the information for billing code</param>
-        /// <param name="path"> Path of the billing code</param>
+        /// <param name="feeCode"> The fee code generated depending on the encounter</param>
+        /// <param name="appID"> The appointment ID</param>
 
-        public void CreateBillingCode(DatabaseManager database, string path, string feeCode, object appID)
+        public void CreateBillingCode(DatabaseManager database, string feeCode, object appID)
         {
 
             //Create a new instance of the log class - used for errors
@@ -61,7 +62,7 @@ namespace Billing
             //Get the appointment ID passed in
             int ID;
 
-            //Try and convert the object to an int(if not an int already)
+            //Try and convert the object to an int(if not an int already) - > if errors, please change
             try
             {
                 ID = (int)appID;
@@ -147,7 +148,21 @@ namespace Billing
             //Generate the final response code to send to the ministry
             string finalResponse = date + patientHCN + sex + feeCode + zeroPadded + finalCost + "00";
 
-            //save to file
+            WriteInfoToFile("../../BillingCodes.txt", finalResponse);
+        }
+
+        /// <summary>
+        /// Writes the billing information to the file at the given path.
+        /// </summary>
+        /// <param name="path"> Path to write the constructed billing code to </param>
+        /// <param name="info"> The billing code</param>
+        /// 
+        private void WriteInfoToFile(string path, string info)
+        {
+            using (StreamWriter sw = File.AppendText(path))
+            {
+                sw.WriteLine(info);
+            }
         }
 
 
@@ -204,6 +219,7 @@ namespace Billing
             StringBuilder saveToFile = new StringBuilder();
             saveToFile.AppendFormat("{0},{1},{2},{3},{4},{5},{6}\n", totalEncounters, billedProcedures, receivedTotal, receivedPercentage, averageBilling, toFollowEncounters);
 
+            //WriteInfoToFile("../../MonthlyReport.txt", );
             //save to file
         }
     
@@ -213,6 +229,8 @@ namespace Billing
             string strToday = theDate.ToString("yyyyMMdd");
             return strToday;
         }
+
+
 
     }
     
