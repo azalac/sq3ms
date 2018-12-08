@@ -196,7 +196,13 @@ namespace Billing
 
 
             StringBuilder saveToFile = new StringBuilder();
-            saveToFile.AppendFormat("{0},{1},{2},{3},{4},{5},{6}\n", totalEncounters, billedProcedures, receivedTotal, receivedPercentage, averageBilling, toFollowEncounters);
+            saveToFile.AppendFormat("Total Encounters Billed: {0}\n" +
+                                    "Total Billed Procedures: {1}\n" +
+                                    "Received Total: {2}\n" +
+                                    "Received Percentage: {3}\n" +
+                                    "Average Billing: {4}\n" +
+                                    "Encounters To Follow-up: {5}\n", 
+                                    totalEncounters, billedProcedures, receivedTotal, receivedPercentage, averageBilling, toFollowEncounters);
 
             //save to file
         }
