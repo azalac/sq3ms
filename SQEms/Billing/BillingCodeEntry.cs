@@ -141,7 +141,7 @@ namespace Billing
             //Generate the final response code to send to the ministry
             string finalResponse = date + patientHCN + feeCode + zeroPadded + finalCost + "00";
 
-            //either return finalResponse or write to a text file (path param)
+            //save to file
         }
 
 
@@ -163,11 +163,44 @@ namespace Billing
         /// 
         /// Format is supposed to be CSV, but no layout specified?
         /// </remarks>
-        public void WriteStatistics(string path)
+        public void WriteStatistics(string path, int month)
         {
+            int totalEncounters = 0;
+            int paidEncounters = 0;
+            int toFollowEncounters = 0;
+            float billedProcedures = 0;
+            float receivedTotal = 0;
+            float receivedPercentage = 0;
+            float averageBilling = 0;
 
+            foreach(object key in billing.WhereEquals("Month", month))
+            {
+                totalEncounters++;
+
+                float.TryParse(billing[key, "Fee"].ToString(), out float billed);
+                billedProcedures += billed;
+
+
+                if ((BillingCodeResponse)billing[key, "CodeResponse"] == BillingCodeResponse.PAID)
+                {
+                    paidEncounters++;
+                    receivedTotal += billed;
+                }
+            }
+
+
+            toFollowEncounters = totalEncounters - paidEncounters;
+
+            receivedPercentage = (receivedTotal / totalEncounters) * 100;
+            averageBilling = receivedTotal / totalEncounters;
+
+
+            StringBuilder saveToFile = new StringBuilder();
+            saveToFile.AppendFormat("{0},{1},{2},{3},{4},{5},{6}\n", totalEncounters, billedProcedures, receivedTotal, receivedPercentage, averageBilling, toFollowEncounters);
+
+            //save to file
         }
-
+    
         public static string GetDateOfService()
         {
             DateTime theDate = DateTime.Now;
