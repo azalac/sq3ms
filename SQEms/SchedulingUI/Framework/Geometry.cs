@@ -580,6 +580,14 @@ namespace SchedulingUI
         }
 
         /// <summary>
+        /// Resets the global buffer to all zeros.
+        /// </summary>
+        public static void GlobalReset(IConsole buffer)
+        {
+            GLOBAL.CharBuffer = new uint[buffer.BufferWidth, buffer.BufferHeight];
+        }
+
+        /// <summary>
         /// Converts a list of shorts to a string.
         /// </summary>
         /// <param name="shorts">The shorts to convert</param>

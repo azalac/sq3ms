@@ -43,6 +43,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Framework\InterfaceControllers.cs" />
+    <Compile Include="InterfaceContentHelpers.cs" />
     <Compile Include="PatientsController.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Framework\AdvancedWidgets.cs" />
