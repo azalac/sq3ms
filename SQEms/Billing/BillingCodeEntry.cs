@@ -145,6 +145,7 @@ namespace Billing
             //Generate the final response code to send to the ministry
             string finalResponse = date + patientHCN + sex + feeCode + zeroPadded + finalCost + "00";
 
+            //Write information to billing codes file
             WriteInfoToFile("../../BillingCodes.txt", finalResponse);
         }
 
@@ -156,6 +157,7 @@ namespace Billing
         /// 
         private void WriteInfoToFile(string path, string info)
         {
+            //Write to the file specified
             using (StreamWriter sw = File.AppendText(path))
             {
                 sw.WriteLine(info);
@@ -239,6 +241,58 @@ namespace Billing
             DateTime theDate = DateTime.Now;
             string strToday = theDate.ToString("yyyyMMdd");
             return strToday;
+        }
+
+        /// <summary>
+        /// Parse the response code lines in file provided
+        /// </summary>
+        /// <param name="path"> Path which contains response codes </param>
+        /// 
+
+        public void ParseResponseFile(string path)
+        {
+            //Create a new instance of the log class - used for errors
+            Logging logger = new Logging();
+
+            //Store all of the lines from response file in a string array
+            string[] responseLines = File.ReadAllLines(path);
+
+            //For each response code
+            foreach(string respCode in responseLines)
+            {
+                //If the length of the code is 40 characters (if not 40 characters, skip the line)
+                if(respCode.Length == 40)
+                {
+                    //Integer variables that represent the date
+                    int intYear = 0;
+                    int intMonth = 0;
+                    int intDay = 0;
+
+                    //Create string variables that hold parsed information from response string
+                    string yearString = respCode.Substring(0, 4);
+                    string monthString = respCode.Substring(4, 2);
+                    string dayString = respCode.Substring(6, 2);
+                    string hcn = respCode.Substring(8, 12);
+                    string paymentStatus = respCode.Substring((respCode.Length - 4), 4);
+
+                    //Try and convert string to int
+                    try
+                    {
+                        //Convert each date string into an int
+                        intYear = int.Parse(yearString);
+                        intMonth = int.Parse(monthString);
+                        intDay = int.Parse(dayString);
+                    }
+
+                    //If an exception was thrown
+                    catch (Exception)
+                    {
+                        logger.Log(LoggingInfo.ErrorLevel.ERROR, "Error converting info in response file");
+                    }
+
+                    //ADD LOGIC FOR CHANGING THE PAYMENT STATUS TO RESPONSE FILE STATUS IN BILLING
+                }              
+            }
         }
     }   
 }
