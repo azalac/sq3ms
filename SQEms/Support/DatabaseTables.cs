@@ -208,16 +208,27 @@ namespace Support
 
     public class BillingCodeTable : DatabaseTablePrototype
     {
-        public BillingCodeTable() : base(8)
+        public BillingCodeTable() : base(10)
         {
             Name = "Billing";
 
-            Columns = new string[] { "BillingID", "AppointmentID", "DateOfService", "HCN", "Gender", "BillingCode", "Fee", "CodeResponse" };
+            Columns = new string[] { "BillingID",
+                                     "AppointmentID",
+                                     "Month",
+                                     "Week",
+                                     "Day",
+                                     "HCN",
+                                     "Gender",
+                                     "BillingCode",
+                                     "Fee",
+                                     "CodeResponse" };
 
             ColumnTypes = new Type[] {
                 typeof(Int32),
                 typeof(Int32),
-                typeof(string),
+                typeof(Int32),
+                typeof(Int32),
+                typeof(Int32),
                 typeof(string),
                 typeof(SexTypes),
                 typeof(string),
@@ -229,9 +240,9 @@ namespace Support
 
             ColumnWriters[6] = (r, o) => r.Write(Convert.ToInt32(o));
 
-            ColumnReaders[7] = (r) => (BillingCodeResponse)r.ReadInt32();
+            ColumnReaders[9] = (r) => (BillingCodeResponse)r.ReadInt32();
 
-            ColumnWriters[7] = (r, o) => r.Write(Convert.ToInt32(o));
+            ColumnWriters[9] = (r, o) => r.Write(Convert.ToInt32(o));
 
             PrimaryKeyIndex = 0;
 
