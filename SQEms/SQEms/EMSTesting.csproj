@@ -51,6 +51,10 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Definitions\Definitions.csproj">
+      <Project>{961CF898-6528-4D07-B2A2-1F8C337627CC}</Project>
+      <Name>Definitions</Name>
+    </ProjectReference>
     <ProjectReference Include="..\SchedulingUI\SchedulingUI.csproj">
       <Project>{9D132E48-924E-40D9-88B4-C9732CB447CC}</Project>
       <Name>SchedulingUI</Name>
