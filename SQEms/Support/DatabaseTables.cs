@@ -208,7 +208,7 @@ namespace Support
 
     public class BillingCodeTable : DatabaseTablePrototype
     {
-        public BillingCodeTable() : base(6)
+        public BillingCodeTable() : base(8)
         {
             Name = "Billing";
 
@@ -225,13 +225,13 @@ namespace Support
                 typeof(BillingCodeResponse)
             };
 
-            ColumnReaders[7] = (r) => (SexTypes)r.ReadInt32();
+            ColumnReaders[6] = (r) => (SexTypes)r.ReadInt32();
+
+            ColumnWriters[6] = (r, o) => r.Write(Convert.ToInt32(o));
+
+            ColumnReaders[7] = (r) => (BillingCodeResponse)r.ReadInt32();
 
             ColumnWriters[7] = (r, o) => r.Write(Convert.ToInt32(o));
-
-            ColumnReaders[8] = (r) => (BillingCodeResponse)r.ReadInt32();
-
-            ColumnWriters[8] = (r, o) => r.Write(Convert.ToInt32(o));
 
             PrimaryKeyIndex = 0;
 
