@@ -225,7 +225,7 @@ namespace Billing
                                     "Encounters To Follow-up: {5}\n", 
                                     totalEncounters, billedProcedures, receivedTotal, receivedPercentage, averageBilling, toFollowEncounters);
 
-            //WriteInfoToFile("../../MonthlyReport.txt", );
+            WriteInfoToFile("../../MonthlyReport.txt", saveToFile.ToString());
             //save to file
         }
     
@@ -236,6 +236,26 @@ namespace Billing
             return strToday;
         }
 
+        public int[] DateToUnix(int year, int month, int day)
+        {
+            var dateTime = new DateTime(year, month, day, 0, 0, 0);
+            var epoch = new DateTime(1970, 1, 1, 0, 0, 0);
+            var unixDateTime = (dateTime.ToUniversalTime() - epoch).TotalSeconds;
+
+            int seconds = (int)unixDateTime;
+
+            int[] returnDate = { };
+
+            returnDate[0] = seconds / 2628000;
+            seconds = seconds % 2628000;
+
+            returnDate[1] = seconds / 86400;
+
+            returnDate[2] = returnDate[1] / 7;
+            returnDate[1] = returnDate[1] % 7;
+
+            return returnDate;
+        }
 
 
     }
