@@ -40,7 +40,6 @@ namespace Support
     /// </summary>
     public class AppointmentScheduler
     {
-        private Logging logging;
         private readonly DatabaseTable Patients;
         private DatabaseTable Appointments;
 
