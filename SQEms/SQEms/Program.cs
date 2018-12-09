@@ -14,13 +14,19 @@ namespace SQEms
     {
         static void Main(string[] args)
 		{
+            DatabaseManager database = new DatabaseManager();
+
+            database.LoadAll();
+
             InterfaceStart.InitConsole();
 
-            InterfaceStart _interface = new InterfaceStart(StandardConsole.INSTANCE);
+            InterfaceStart _interface = new InterfaceStart(StandardConsole.INSTANCE, database);
 
             _interface.WaitUntilExit();
 
             InterfaceStart.ResetConsole();
+
+            database.SaveAll();
         }
     }
 }
