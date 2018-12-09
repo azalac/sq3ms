@@ -320,7 +320,7 @@ namespace SchedulingUI
         /// Adds a single component.
         /// </summary>
         /// <param name="component">The component to add</param>
-        public virtual void Add(IComponent component)
+        public void Add(IComponent component)
         {
             Components.Add(component);
 
@@ -331,7 +331,7 @@ namespace SchedulingUI
         /// Adds multiple components with a varargs argument list.
         /// </summary>
         /// <param name="components">The components to add</param>
-        public virtual void Add(params IComponent[] components)
+        public void Add(params IComponent[] components)
         {
 
             Components.AddRange(components);
@@ -440,13 +440,13 @@ namespace SchedulingUI
 				buffer.Background = Background;
 				buffer.Foreground = Foreground;
 
-                //string filler = new string(' ', Width);
+                string filler = new string(' ', Width);
                 
                 // clear the background of this container
                 for (int y = Top; y < Top + Height; y++)
                 {
                     // TODO fix this
-                    if (true)
+                    if (false)
                     {
                         for (int x = Left; x < Left + Width; x++)
                         {
@@ -455,7 +455,7 @@ namespace SchedulingUI
                     }
                     else
                     {
-                        //buffer.PutString(Left, y, filler);
+                        buffer.PutString(Left, y, filler);
                     }
                 }
 				
@@ -710,7 +710,7 @@ namespace SchedulingUI
             colors.Push(cols);
             if(colors.Peek() == null)
             {
-                int a = 5;
+
             }
         }
 
@@ -880,7 +880,7 @@ namespace SchedulingUI
         /// <param name="y">The starting Y</param>
         /// <param name="s">The string</param>
         /// <param name="length">The maximum length</param>
-        public void PutString (int x, int y, string s, int length)
+        public void PutString2 (int x, int y, string s, int length)
 		{
             int width = parent.BufferWidth;
             int offset = x + y * width;
@@ -911,8 +911,48 @@ namespace SchedulingUI
 
             UpdatePosition((i2 + offset) % width, (i2 + offset) / width);
         }
-        
-		public IConsole CreateSubconsole (int Left, int Top, int Width, int Height)
+
+        public void PutString(int x, int y, string s, int length)
+        {
+            int width = parent.BufferWidth;
+            int offset = x + y * width;
+            int i = 0;
+
+            string buf = "";
+            int x0 = 0, y0 = 0;
+
+            while (i < s.Length)
+            {
+                int tot = i + offset;
+
+                if (ValidPosition(tot % width, tot / width))
+                {
+                    if (buf.Length == 0)
+                    {
+                        x0 = tot % width;
+                        y0 = tot / width;
+                    }
+
+                    buf += s[i];
+                }
+                else if (buf.Length > 0)
+                {
+                    parent.PutString(x0, y0, buf);
+                    buf = "";
+                }
+
+                i++;
+            }
+            
+            UpdatePosition((i + offset) % width, (i + offset) / width);
+
+            if (buf.Length > 0)
+            {
+                parent.PutString(x0, y0, buf);
+            }
+        }
+
+        public IConsole CreateSubconsole (int Left, int Top, int Width, int Height)
 		{
 			return new Subconsole(this, Left, Top, Width, Height);
 		}
