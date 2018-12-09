@@ -156,7 +156,7 @@ namespace Support
         {
             if (string.IsNullOrWhiteSpace(message) == false && CheckLevel(errorLevel) == true)
             {
-                string logMessage = (GetErrorLevelString(errorLevel) + " [" + DateTime.Now + "] - " + message + Environment.NewLine);
+                string logMessage = string.Format("{0} [{1}] - {2} {3}\n", GetErrorLevelString(errorLevel), DateTime.Now, message, GetStackTrace());
                 SaveToFile(logMessage);
             }
         }
@@ -212,6 +212,23 @@ namespace Support
 
 
 
+        /// <summary>
+        /// Determines the stacktrace of the calling method's caller.
+        /// </summary>
+        /// <returns>The stacktrace</returns>
+        private string GetStackTrace()
+        {
+            System.Diagnostics.StackFrame[] frame = new System.Diagnostics.StackTrace(true).GetFrames();
+
+            int i = 0;
+
+            while (i < frame.Length && frame[i].GetFileName().Contains("Logging.cs"))
+            {
+                i++;
+            }
+
+            return frame[i].ToString();
+        }
 
 
 
