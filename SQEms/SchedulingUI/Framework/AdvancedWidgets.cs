@@ -11,11 +11,30 @@ namespace SchedulingUI
     /// A component which can be typed into.
     /// </summary>
 	public class TextInput : Label
-	{
+    {
+        public enum TextLengthType
+        {
+            /// <summary>
+            /// Default, text length relies only on its property.
+            /// </summary>
+            TEXT_LENGTH,
+
+            /// <summary>
+            /// Text length is the component's width only.
+            /// </summary>
+            WIDTH_ONLY,
+
+            /// <summary>
+            /// The component width, using TextLength as a right-side-padding.
+            /// If <code>Width < TextLength</code>, the length is 0.
+            /// </summary>
+            WIDTH_MINUS_LENGTH
+        }
+
         /// <summary>
         /// The currently-selected index.
         /// </summary>
-		public int SelectIndex { get; set; }
+		private int selectedIndex;
 
         /// <summary>
         /// The maximum length for text. Allows for 'TextLength - 1' characters
@@ -23,117 +42,176 @@ namespace SchedulingUI
         /// </summary>
 		public int TextLength { get; set; }
 
-		public TextInput(int TextLength = 10)
-		{
-			Text = "";
-			this.TextLength = TextLength;
+        /// <summary>
+        /// Whether this text input has special highligh colors or not
+        /// </summary>
+        public bool SpecialHighlight { get; set; }
+
+        /// <summary>
+        /// The special highlight foreground.
+        /// </summary>
+        public ColorCategory HighlightForeground { get; set; }
+
+        /// <summary>
+        /// The special highligh background.
+        /// </summary>
+        public ColorCategory HighlightBackground { get; set; }
+
+        /// <summary>
+        /// The cursor color.
+        /// </summary>
+        /// <remarks>
+        /// Always the same, regardless of highlighting/focis.
+        /// </remarks>
+        public ColorCategory CursorColor { get; set; }
+
+        /// <summary>
+        /// The way text length should be resolved.
+        /// </summary>
+        public TextLengthType TextLengthBinding { get; set; }
+
+        public TextInput(int TextLength = 10)
+        {
+            Text = "";
+            this.TextLength = TextLength;
         }
-        
-		protected override bool HandleKeyPress(object sender, ConsoleKeyEventArgs args)
-		{
-			// if this component doesn't have focus, don't do the keypress
-			if (!HasFocus)
-			{
-				return false;
-			}
 
-			bool needsRedraw = false;
+        /// <summary>
+        /// Clears this text input.
+        /// </summary>
+        public void Clear()
+        {
+            Text = "";
+            selectedIndex = 0;
+        }
 
-            string text_pre = Text;
-            
-			switch (args.Key.Key)
-			{
-			case ConsoleKey.Backspace:
-				Delete ();
-				break;
-
-			case ConsoleKey.LeftArrow:
-				if (SelectIndex > 0) {
-					SelectIndex--;
-				}
-				needsRedraw = true;
-				break;
-
-			case ConsoleKey.RightArrow:
-				if (SelectIndex < Text.Length) {
-					SelectIndex++;
-				}
-				needsRedraw = true;
-				break;
-			}
-
-			if(!char.IsControl(args.Key.KeyChar))
-			{
-				Insert (args.Key.KeyChar);
-			}
-            
-            // if the text has changed, it needs to be redrawn.
-            if(!Text.Equals(text_pre))
+        protected override bool HandleKeyPress(object sender, ConsoleKeyEventArgs args)
+        {
+            // if this component doesn't have focus, don't do the keypress
+            if (!HasFocus)
             {
-                needsRedraw = true;
+                return false;
             }
 
-			if(needsRedraw)
-			{
-				OnRequestRedraw (this, new RedrawEventArgs (this));
-			}
-            
-            return needsRedraw;
-		}
+            bool handled = false;
 
-		private void Delete()
-		{
-			// if there's a character to delete, delete it
-			if (Text.Length > 0 && SelectIndex > 0)
-			{
-				StringBuilder sb = new StringBuilder (Text);
+            string text_pre = Text;
 
-				sb.Remove (SelectIndex - 1, 1);
+            List<Tuple<int, int>> modified = new List<Tuple<int, int>>();
 
-				Text = sb.ToString ();
+            modified.Add(new Tuple<int, int>(Left + selectedIndex, Top));
 
-				SelectIndex--;
-			}
-		}
+            switch (args.Key.Key)
+            {
+                case ConsoleKey.Backspace:
+                    handled = Delete();
+                    break;
 
-		private void Insert(char c)
-		{
-			// if there's room to insert the character, insert it
-			if (Text.Length + 1 < TextLength)
-			{
-				StringBuilder sb = new StringBuilder (Text);
+                case ConsoleKey.LeftArrow:
+                    if (selectedIndex > 0)
+                    {
+                        selectedIndex--;
+                        handled = true;
+                    }
+                    break;
 
-				sb.Insert (SelectIndex, c);
+                case ConsoleKey.RightArrow:
+                    if (selectedIndex < Text.Length)
+                    {
+                        selectedIndex++;
+                        handled = true;
+                    }
+                    break;
+            }
 
-				Text = sb.ToString ();
+            if (!char.IsControl(args.Key.KeyChar))
+            {
+                handled = Insert(args.Key.KeyChar);
+            }
 
-				SelectIndex++;
-			}
-		}
+            modified.Add(new Tuple<int, int>(Left + selectedIndex, Top));
 
-		/// <summary>
-		/// Draws this text input
-		/// </summary>
-		public override void Draw(IConsole buffer)
-		{
-            int xoffset = Center ? (Width - TextLength) / 2 : 0;
+            OnRequestRedraw(this, new RedrawEventArgs(Rectangle.Encompassing(modified)));
 
-            string drawtext = Text + new string(' ', TextLength - Text.Length);
+            // if the text has changed, it needs to be redrawn.
+            if (!Text.Equals(text_pre))
+            {
+                handled = true;
+            }
 
-            string pre = SelectIndex > 0 ? drawtext.Substring(0, SelectIndex) : "";
-            char sel = drawtext[SelectIndex];
-            string post = SelectIndex < drawtext.Length - 1 ? drawtext.Substring(SelectIndex + 1) : "";
+            return handled;
+        }
+
+        private int GetTargetTextLength()
+        {
+            switch (TextLengthBinding)
+            {
+                case TextLengthType.TEXT_LENGTH:
+                    return TextLength;
+                case TextLengthType.WIDTH_ONLY:
+                    return Width;
+                case TextLengthType.WIDTH_MINUS_LENGTH:
+                    return Math.Max(0, Width - TextLength);
+            }
+
+            return TextLength;
+        }
+
+        private bool Delete()
+        {
+            // if there's a character to delete, delete it
+            if (Text.Length > 0 && selectedIndex > 0)
+            {
+                selectedIndex--;
+
+                Text = Text.Remove(selectedIndex, 1);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool Insert(char c)
+        {
+            // if there's room to insert the character, insert it
+            if (Text.Length + 1 < GetTargetTextLength())
+            {
+                Text = Text.Insert(selectedIndex, c.ToString());
+
+                selectedIndex++;
+
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Draws this text input
+        /// </summary>
+        public override void Draw(IConsole buffer)
+        {
+            int target_length = GetTargetTextLength();
+
+            int xoffset = Center ? (Width - target_length) / 2 : 0;
+
+            string drawtext = Text + new string(' ', target_length - Text.Length);
+
+            string pre = selectedIndex > 0 ? drawtext.Substring(0, selectedIndex) : "";
+            char sel = drawtext[selectedIndex];
+            string post = selectedIndex < drawtext.Length - 1 ? drawtext.Substring(selectedIndex + 1) : "";
 
             UpdateColors(buffer, 0);
             buffer.PutString(Left + xoffset, Top, pre);
 
-            UpdateColors(buffer, SelectIndex);
-            buffer.PutCharacter(Left + SelectIndex + xoffset, Top, sel);
+            UpdateColors(buffer, selectedIndex);
+            buffer.PutCharacter(Left + selectedIndex + xoffset, Top, sel);
 
-            UpdateColors(buffer, SelectIndex + 1);
-            buffer.PutString(Left + SelectIndex + 1 + xoffset, Top, post);
-		}
-        
+            UpdateColors(buffer, selectedIndex + 1);
+            buffer.PutString(Left + selectedIndex + 1 + xoffset, Top, post);
+        }
+
         /// <summary>
         /// Updates the colors of the buffer depending on the current index of
         /// the text.
@@ -142,25 +220,23 @@ namespace SchedulingUI
         /// <param name="current_index">The index in the string</param>
         private void UpdateColors(IConsole buffer, int current_index)
         {
-            if (current_index == SelectIndex)
+            if (HasFocus)
             {
-                buffer.Foreground = Foreground;
-                buffer.Background = ColorCategory.HIGHLIGHT_BG;
-                return;
+                buffer.Foreground = SpecialHighlight ? HighlightForeground : Background;
+                buffer.Background = SpecialHighlight ? HighlightBackground : Foreground;
             }
-
-            if (!HasFocus)
+            else
             {
                 buffer.Foreground = Foreground;
                 buffer.Background = Background;
             }
-            else
+
+            if (current_index == selectedIndex)
             {
-                buffer.Foreground = Background;
-                buffer.Background = Foreground;
+                buffer.Background = ColorCategory.HIGHLIGHT_BG;
             }
         }
-	}
+    }
 
     /// <summary>
     /// A component which can be activated with the 'Enter' key.
@@ -212,7 +288,7 @@ namespace SchedulingUI
 					}
 					else
 					{
-						System.Diagnostics.Debug.WriteLine ("Warning: button with text '{0}' has no action", Text);
+                        DebugLog.LogComponent("Warning: button with text '" + Text + "' has no action");
 					}
 
                     LAST_ACTIVATION = current_millis;
@@ -328,7 +404,7 @@ namespace SchedulingUI
                 return;
             }
 
-            System.Diagnostics.Debug.WriteLine("New Selection: " + newSelection);
+            DebugLog.LogComponent("New Selection: " + newSelection);
 
             int oldSelection = selectedIndex;
             selectedIndex = newSelection;
@@ -357,6 +433,15 @@ namespace SchedulingUI
         public void Add(IComponent component)
         {
             Components.Add(component);
+        }
+
+        /// <summary>
+        /// Adds multiple components to this controller
+        /// </summary>
+        /// <param name="component">The components</param>
+        public void Add(params IComponent[] component)
+        {
+            Components.AddRange(component);
         }
 
         /// <summary>
