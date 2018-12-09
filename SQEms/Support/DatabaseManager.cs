@@ -23,10 +23,11 @@ namespace Support
 		static DatabaseManager()
 		{
 			AddTable(new TestTable(), "./test_table.dat");
-
-			AddTable (new PeopleTable (), "./people.dat");
-			AddTable (new AppointmentTable (), "./appointments.dat");
-			AddTable (new HouseholdTable (), "./households.dat");
+            AddTable(new BillingCodeTable(), "./billingCode_table.dat");
+            AddTable(new BillingMasterTable(), "./billingMaster_table.dat");
+            AddTable(new PeopleTable (), "./people.dat");
+			AddTable(new AppointmentTable (), "./appointments.dat");
+			AddTable(new HouseholdTable (), "./households.dat");
 		}
 
 		/// <summary>
@@ -187,6 +188,24 @@ namespace Support
 
 			Data [columns [prototype.PrimaryKeyIndex]] = columns;
 		}
+
+
+
+
+        /// <summary>
+		/// Removes entire row from Dictionary 
+		/// </summary>
+		/// <param name="columns">The columns to insert</param>
+		public void DeleteRow(object key)
+        {
+            if (Data.ContainsKey(key))
+            {
+                Data.Remove(key);
+            }
+
+        }
+
+
 
         /// <summary>
         /// Gets the primary keys for rows which match a certain condition.
