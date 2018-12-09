@@ -590,4 +590,34 @@ namespace SchedulingUI
         }
     }
 
+    public class MonthFilePathDataEntry: FormInputSelectorContent
+    {
+        public MonthFilePathDataEntry():
+            base("Month", "File Path")
+        {
+            Name = "MonthFilePath";
+
+            Parsers["Month"] = ParseMonth;
+        }
+
+        private object ParseMonth(string text, out bool valid)
+        {
+            valid = int.TryParse(text, out int number);
+
+            if (valid && number >= 0 && number <= 11)
+            {
+                return number;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        public override void HandleArguments(string[] arguments)
+        {
+
+        }
+    }
+
 }
