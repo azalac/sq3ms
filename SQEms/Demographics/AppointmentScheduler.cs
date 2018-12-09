@@ -5,6 +5,7 @@
  */
 
 using System;
+using System.Linq;
 using Definitions;
 
 namespace Support
@@ -16,14 +17,12 @@ namespace Support
     public class AptTimeSlot
 	{
 		public int month,
-                   week,
 				   day,
 				   slot;
 
-        public AptTimeSlot(int month, int week, int day, int slot)
+        public AptTimeSlot(int month, int day, int slot)
         {
             this.month = month;
-            this.week = week;
             this.day = day;
             this.slot = slot;
         }
@@ -72,13 +71,13 @@ namespace Support
             int maxID = Appointments.GetMaximum("AppointmentID") + 1;
 
             //validate the date
-            ValidateDate(time.month, time.week, time.day, time.slot);
+            ValidateDate(time.month, time.day, time.slot);
 
             //if the time slot does not have a patient booked add them
             //else throw an exception
             if (GetPatientIDs(time) == null)
             {
-                Appointments.Insert(maxID, time.month, time.week, time.day, time.slot, PatientID, CaregiverID);
+                Appointments.Insert(maxID, time.month, time.day, time.slot, PatientID, CaregiverID);
             }
             else
             {
@@ -94,57 +93,42 @@ namespace Support
         /// Finds the next available time slot.
         /// </summary>
         /// <param name="after">The time to start from</param>
-        /// <param name="nweeks">The target number of weeks after the start</param>
+        /// <param name="weeks_to_skip">The target number of weeks to skip</param>
         /// <returns>The timeslot, or null if none was found.</returns>
-        public AptTimeSlot FindNextSlot(AptTimeSlot after, int nweeks)
+        public AptTimeSlot FindNextSlot(AptTimeSlot after, int weeks_to_skip, int max_months = 1)
         {
             int month = after.month;
-            int week = after.week + 1;
-            int day = 0;
-            int slot = 0;
+            // start the sunday of 'after'
+            int day = after.day - after.day % CalendarInfo.WEEK_LENGTH +
+                weeks_to_skip * CalendarInfo.WEEK_LENGTH;
 
             //validate the given time slot
-            ValidateDate(after.month, after.week, after.day, after.slot);
+            ValidateDate(after.month, after.day, after.slot);
 
-            //Loop until the target week
-            while (nweeks > 0)
+            //Loop until the maximum months exceeded
+            while (month - after.month < max_months)
             {
-                //loop through the days
-                while (day < 7)
+                //loop through every day in the month
+                while (day < DateTime.DaysInMonth(month / 12, month % 12))
                 {
-                    //loop through the time slots
-                    while (slot < CalendarInfo.MAX_APPOINTMENTS[day])
+                    //loop through the time slots for the current day
+                    for (int slot = 0; slot < CalendarInfo.MAX_APPOINTMENTS[day % CalendarInfo.WEEK_LENGTH]; slot++)
                     {
-                        
-                        //if the time slot is full then increment the slot
-                        //else return the time slot found
-                        AptTimeSlot tmpTime = new AptTimeSlot(month, week, day, slot);
-                        if (GetPatientIDs(tmpTime) != null)
-                        {
-                            slot++;
-                        }
-                        else
+                        //if the time slot isn't full then return the time slot found
+                        AptTimeSlot tmpTime = new AptTimeSlot(month, day, slot);
+                        if (GetPatientIDs(tmpTime) == null)
                         {
                             return tmpTime;
                         }
                     }
-                    //reset the slot number for the next day and increment day
-                    slot = 0;
+
                     day++;
                 }
 
                 //reset the day and increment the week
                 //decrement the target week
                 day = 0;
-                nweeks--;
-                week++;
-
-                //if the week exceeds 4 (4 weeks in a month) then reset week and increment the month
-                if (week >= 4)
-                {
-                    week = 0;
-                    month++;
-                }
+                month++;
             }
 
             return null;
@@ -165,12 +149,12 @@ namespace Support
             Tuple<int, int> retIDs = null;
 
             //validate the time slot
-            ValidateDate(slot.month, slot.week, slot.day, slot.slot);
+            ValidateDate(slot.month, slot.day, slot.slot);
 
             //Find the appointment being searched
             //if the PatientID and the CaregiverID is valid thn return the IDs
             //else log an error
-            foreach (object key in Appointments.WhereEquals("Month;Week;Day;TimeSlot", slot.month, slot.week, slot.day, slot.slot))
+            foreach (object key in Appointments.WhereEquals("Month;Day;TimeSlot", slot.month, slot.day, slot.slot))
             {
                 int.TryParse(Appointments[key, "PatientID"].ToString(), out int pID);
                 int.TryParse(Appointments[key, "CaregiverID"].ToString(), out int cGiverID);
@@ -185,6 +169,18 @@ namespace Support
 
 
 
+        /// <summary>
+        /// Gets all appointments on a given day.
+        /// </summary>
+        /// <param name="slot">The timeslot (slot field ignored).</param>
+        /// <returns>A tuple array containing [PatientID, CaregiverID, TimeSlot] for each appointment.</returns>
+        public Tuple<int, int, int>[] GetPatientIDs_AllDay(AptTimeSlot slot)
+        {
+            return Appointments.WhereEquals("Month;Day", slot.month, slot.day)
+                .Select(pk => new Tuple<int, int, int>((int)Appointments[pk, "PatientID"], (int)Appointments[pk, "CaregiverID"],
+                (int)Appointments[pk, "TimeSlot"])).ToArray();
+        }
+        
 
         /// <summary>
         /// Gets the number of appointments for a given day.
@@ -192,21 +188,9 @@ namespace Support
         /// <param name="week">The week to check</param>
         /// <param name="day">The day to check</param>
         /// <returns>The number of appointments</returns>
-        public int AppointmentCount(int month, int week, int day)
+        public int AppointmentCount(int month, int day)
         {
-            int retInt = 0;
-            string[] columns = { "Month", "Week", "Day" };
-
-            //validate the given date
-            ValidateDate(month, week, day);
-
-            //Find all apointments in the given date and increment the int for each of them
-            foreach (object key in Appointments.WhereEquals("Month;Week;Day", month, week, day))
-            {
-                retInt++;
-            }
-
-            return retInt;
+            return Appointments.WhereEquals("Month;Day", month, day).Count();
         }
 
 
@@ -222,12 +206,12 @@ namespace Support
         /// <param name="slot">The slot to check</param>
         /// <exception cref="ArgumentException">If the date is not valid</exception>
         /// <returns>Bool if the dates are valid</returns>
-        public bool ValidateDate (int month = 0, int week = 0, int day = 0, int slot = 0)
+        public bool ValidateDate (int month = 0, int day = 0, int slot = 0)
         {
             bool valid = false;
 
             //check that the dates are within range and return true
-            if ( -1 < month && -1 < week && week < 4 && -1 < day && day < 7 && -1 < slot && slot < CalendarInfo.MAX_APPOINTMENTS[day])
+            if ( -1 < month && -1 < day && day < 7 && -1 < slot && slot < CalendarInfo.MAX_APPOINTMENTS[day])
             {
                 valid = true;
             }
