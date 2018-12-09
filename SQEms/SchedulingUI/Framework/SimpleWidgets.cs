@@ -187,7 +187,7 @@ namespace SchedulingUI
 		public override void Draw (IConsole buffer)
 		{
 			// if there's no width, or there's no text, do nothing
-			if (Width <= 0 || Text.Length == 0) {
+			if (Width <= 0 || Text == null || Text.Length == 0) {
 				return;
 			}
 
@@ -365,8 +365,10 @@ namespace SchedulingUI
 				heights [i] = Components [i].PreferredHeight;
 				sum += heights [i];
 
-				System.Diagnostics.Debug.WriteLineIf (Components [i].PreferredHeight == 0,
-				                                      "Warning, Component " + i + " has no preferred height");
+                if(Components[i].PreferredHeight == 0)
+                {
+                    DebugLog.LogComponent("Warning, Component " + i + " has no preferred height");
+                }
 			}
 
 			int current_height = 0;
@@ -417,9 +419,11 @@ namespace SchedulingUI
 			{
 				widths [i] = Components [i].PreferredWidth;
 				sum += widths [i];
-				
-				System.Diagnostics.Debug.WriteLineIf (Components [i].PreferredWidth == 0,
-				                                      "Warning, Component " + i + " has no preferred width");
+
+                if (Components[i].PreferredWidth == 0)
+                {
+                    DebugLog.LogComponent("Warning, Component " + i + " has no preferred width");
+                }
 			}
 
 			int current_width = 0;
@@ -504,7 +508,7 @@ namespace SchedulingUI
             // this container must contain all components
             if(!Components.Contains(First) || !Components.Contains(Second) || !Components.Contains(Third))
             {
-                System.Diagnostics.Debug.WriteLine("Warning: one of TernaryContainer's components aren't in the container");
+                DebugLog.LogComponent("Warning: one of TernaryContainer's components aren't in the container");
                 return;
             }
             
@@ -583,7 +587,7 @@ namespace SchedulingUI
             // this container must contain both components
             if (!Components.Contains(First) || !Components.Contains(Second))
             {
-                System.Diagnostics.Debug.WriteLine("Warning: BinaryContainer's first & second aren't in the container");
+                DebugLog.LogComponent("Warning: BinaryContainer's first & second aren't in the container");
                 return;
             }
 
@@ -638,7 +642,7 @@ namespace SchedulingUI
     /// Manages all focus-related properties, and has an internal thread for its
     /// events.
     /// </summary>
-    public class RootContainer : Container
+    public class RootContainer : Container, IDisposable
     {
         /// <summary>
         /// The referenced console.
@@ -686,7 +690,7 @@ namespace SchedulingUI
 			{
 				Tuple<InterfaceEvent, object, EventArgs> evt = Events.Take ();
 
-				System.Diagnostics.Debug.WriteLine (string.Format("Handling {0}, sender: {1}, args: {2}",
+                DebugLog.LogComponent(string.Format("Handling {0}, sender: {1}, args: {2}",
                     evt.Item1, evt.Item2, evt.Item3));
 
                 switch (evt.Item1)
@@ -707,7 +711,7 @@ namespace SchedulingUI
         {
             if (Components.Count > 1)
             {
-                System.Diagnostics.Debug.WriteLine("Warning: RootContainer has more than one child");
+                DebugLog.LogComponent("Warning: RootContainer has more than one child");
             }
         }
 
@@ -802,6 +806,8 @@ namespace SchedulingUI
 
         #endregion
 
+        private readonly object drawmutex = new object();
+
         /// <summary>
         /// draws all components, and redraws the lines.
         /// </summary>
@@ -810,7 +816,10 @@ namespace SchedulingUI
         {
             LineDrawer.GlobalReset(buffer);
 
-            base.Draw(buffer);
+            lock (drawmutex)
+            {
+                base.Draw(buffer);
+            }
 
             LineDrawer.GlobalDraw(buffer);
         }
@@ -821,6 +830,10 @@ namespace SchedulingUI
 				Events.Add (new Tuple<InterfaceEvent, object, EventArgs> (evt, sender, e));
 		}
 
+        public void Dispose()
+        {
+            ((IDisposable)Events).Dispose();
+        }
     }
 
     /// <summary>
