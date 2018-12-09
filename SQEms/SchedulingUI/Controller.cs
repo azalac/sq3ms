@@ -23,11 +23,15 @@ namespace SchedulingUI
         private InterfaceContentController ContentController = new InterfaceContentController();
 
         private InterfaceWorkflowController WorkflowController;
-        
+
+        private DatabaseWrapper wrapper;
+
         private Reference<bool> OnHomeScreen = new Reference<bool>(false);
 
-        public InterfaceStart(IConsole buffer)
+        public InterfaceStart(IConsole buffer, DatabaseManager database)
         {
+            wrapper = new DatabaseWrapper(database);
+
             InitializeRoot(buffer);
 
             InitializeContent();
@@ -57,7 +61,7 @@ namespace SchedulingUI
                 ExitKey = ConsoleKey.Escape
             };
 
-            Header = new WeekHeader(OnHomeScreen);
+            Header = new WeekHeader(OnHomeScreen, wrapper);
             BinaryContainer root_container = new BinaryContainer()
             {
                 Vertical = true
@@ -78,7 +82,7 @@ namespace SchedulingUI
         /// </summary>
         private void InitializeContent()
         {
-            DefaultContent InitialContent = new DefaultContent(Header.Week);
+            DefaultContent InitialContent = new DefaultContent(Header.Week, wrapper);
 
             InitialContent.Finish += HandleMenuSelect;
 
@@ -89,7 +93,7 @@ namespace SchedulingUI
 
 
 
-            WorkflowInitializer.SetupSchedulingContent(AddContent, WorkflowController);
+            WorkflowInitializer.SetupSchedulingContent(wrapper, AddContent, WorkflowController);
 
 
 
@@ -144,11 +148,14 @@ namespace SchedulingUI
     static class WorkflowInitializer
     {
         
-        public static void SetupSchedulingContent(Action<object> content_adder, InterfaceWorkflowController controller)
+        public static void SetupSchedulingContent(DatabaseWrapper wrapper,
+            Action<object> content_adder, InterfaceWorkflowController controller)
         {
             SchedulingWorkflowInitializer.Initialize(content_adder, controller);
 
             BillingWorkflowInitializer.Initialize(content_adder, controller);
+
+            new BillingFileWorkflowInitializer(wrapper).Initialize(content_adder, controller);
         }
         
     }
@@ -287,11 +294,88 @@ namespace SchedulingUI
                 "AppointmentRecall;",
                 AcceptData);
 
+
         }
 
         private static Dictionary<string, object> AcceptData(Dictionary<string, object> data)
         {
             DebugLog.LogOther("Billing: " + string.Join(", ", from kvp in data select kvp.Key + "=" + kvp.Value));
+
+            return null;
+        }
+
+    }
+    
+    public class BillingFileWorkflowInitializer
+    {
+        private DatabaseWrapper wrapper;
+
+        public BillingFileWorkflowInitializer(DatabaseWrapper wrapper)
+        {
+            this.wrapper = wrapper;
+        }
+
+        public void Initialize(Action<object> content_adder, InterfaceWorkflowController controller)
+        {
+            controller.AddWorkflow("GenerateBilling", "MonthFilePath(:Enter the month and output file);",
+                InterfaceWorkflowController.IDENTITY_ACCEPTOR, InterfaceWorkflowController.IDENTITY_REDIRECT,
+                DoBillingOutput);
+
+            controller.AddWorkflow("ParseResponse", "MonthFilePath(:Enter the month and input file);",
+                InterfaceWorkflowController.IDENTITY_ACCEPTOR, InterfaceWorkflowController.IDENTITY_REDIRECT,
+                DoParseResponse);
+
+            controller.AddWorkflow("Billing\nManagement", "GenerateOrParse;",
+                InterfaceWorkflowController.IDENTITY_ACCEPTOR, ControlRedirect);
+
+
+            ButtonSelector generateorparse = new ButtonSelector("GenerateOrParse", 2,
+                "Generate Monthly Billing", "Read MOH Response");
+            
+            generateorparse.BindButtonToOption("Generate Monthly Billing", "option", "generate");
+            generateorparse.BindButtonToOption("Read MOH Response", "option", "response");
+
+            content_adder(generateorparse);
+
+            content_adder(new MonthFilePathDataEntry());
+
+        }
+        
+        private bool DoBillingOutput(Dictionary<string, object> values, out string message)
+        {
+            wrapper.GenerateBillingFile((int)values["Month"], (string)values["File Path"]);
+
+            message = "";
+
+            return true;
+        }
+
+        private bool DoParseResponse(Dictionary<string, object> values, out string message)
+        {
+            if(wrapper.DoBillingReconcile((int)values["Month"], (string)values["File Path"]))
+            {
+                message = "";
+
+                return true;
+            }
+            else
+            {
+                message = "Could not find that file";
+
+                return false;
+            }
+        }
+
+        private string ControlRedirect(int stage, string name, bool valid, Dictionary<string, object> values)
+        {
+            if(InterfaceWorkflowController.CheckEquals(values, "option", "generate"))
+            {
+                return "GenerateBilling";
+            }
+            else if (InterfaceWorkflowController.CheckEquals(values, "option", "response"))
+            {
+                return "ParseResponse";
+            }
 
             return null;
         }
@@ -304,14 +388,18 @@ namespace SchedulingUI
 	class WeekHeader: BinaryContainer
 	{
         /// <summary>
-        /// The current week selection.
+        /// The current month & week selection.
         /// </summary>
-        public Reference<int> Week { get; private set; }
-
+        public Reference<DateTime> Week { get; private set; } = new Reference<DateTime>();
+        
         /// <summary>
-        /// The Scheduler object (used to update appointment counts)
+        /// Whether this header should accept input (to change the current week).
         /// </summary>
-        public AppointmentScheduler Scheduler { get; set; }
+        private Reference<bool> AcceptInput;
+        
+        private DatabaseWrapper wrapper = null;
+
+        private DateTime current_week = CalendarManager.GetToday();
 
         private Label nav_instructions = new Label()
         {
@@ -328,28 +416,21 @@ namespace SchedulingUI
 
         private GridContainer day_container = new GridContainer()
         {
-            CountX = 7,
+            CountX = CalendarInfo.WEEK_LENGTH,
             DrawBorders = true
         };
 
         private Label[] day_labels = new Label[7];
         
-        private static readonly string[] day_names = new string[]{ "SUN", "MON", "TUE", "WED", "THUR", "FRI", "SAT" };
-
-        /// <summary>
-        /// Whether this header should accept input (to change the current week).
-        /// </summary>
-        private Reference<bool> AcceptInput;
-
-        public WeekHeader(Reference<bool> OnHomeScreen)
+        public WeekHeader(Reference<bool> OnHomeScreen, DatabaseWrapper wrapper)
         {
             AcceptInput = OnHomeScreen;
+            this.wrapper = wrapper;
 
-            for (int i = 0; i < day_names.Length; i++)
+            for (int i = 0; i < CalendarInfo.WEEK_LENGTH; i++)
             {
                 day_labels[i] = new Label()
                 {
-                    Text = day_names[i],
                     Center = true,
                     PreferredWidth = 8
                 };
@@ -368,8 +449,8 @@ namespace SchedulingUI
 
             Vertical = false;
 
-            Week = new Reference<int>(0);
-            
+            CalendarManager.NormalizeDate(ref current_week);
+
             UpdateLabelText();
         }
 
@@ -384,16 +465,18 @@ namespace SchedulingUI
 
             if (args.Key.Key == ConsoleKey.I)
             {
-                Week.Value--;
+                current_week = current_week.AddDays(-7);
                 UpdateLabelText();
                 handled = true;
             }
             else if (args.Key.Key == ConsoleKey.K)
             {
-                Week.Value++;
+                current_week = current_week.AddDays(7);
                 UpdateLabelText();
                 handled = true;
             }
+
+            Week.Value = current_week;
 
             return handled;
             
@@ -401,26 +484,26 @@ namespace SchedulingUI
 
         private void UpdateLabelText()
         {
-            nav_instructions.Text = string.Format("I /\\\nMONTH {0}\nK \\/", Week.Value);
+            nav_instructions.Text = string.Format("I /\\\n{0}\nK \\/", Week.Value.ToString("MMMM, yyyy"));
 
             OnRequestRedraw(this, new RedrawEventArgs(nav_instructions));
 
             for (int i = 0; i < CalendarInfo.WEEK_LENGTH; i++)
             {
                 //Added the 1 for the month to be search, should be changed
-                int? count = Scheduler?.AppointmentCount(1, Week.Value, i);
+                int? count = wrapper.GetAppointmentCount(Week.Value.Month, Week.Value.Day + i);
 
                 string old_text = day_labels[i].Text;
 
                 if (count.HasValue)
                 {
-                    day_labels[i].Text = day_names[i] + string.Format("\n\n{0}/{1}",
-                        count.Value, CalendarInfo.MAX_APPOINTMENTS[i]);
+                    day_labels[i].Text = string.Format("{2}\n{0}/{1}",
+                        count.Value, CalendarInfo.MAX_APPOINTMENTS[i], (DayOfWeek)i);
                 }
                 else
                 {
-                    day_labels[i].Text = day_names[i] + string.Format("\n\n{0}/{1}",
-                        "?", CalendarInfo.MAX_APPOINTMENTS[i]);
+                    day_labels[i].Text = string.Format("{2}\n{0}/{1}",
+                        "?", CalendarInfo.MAX_APPOINTMENTS[i], (DayOfWeek)i);
                 }
 
                 // only redraw label if necessary
@@ -437,19 +520,20 @@ namespace SchedulingUI
     {
         public string Name => "Default";
 
-        private Menu menu = new Menu("Schedule Apt", "Billing", "Summary", "Add Patient")
+        private Menu menu = new Menu("Schedule Apt", "Billing", "Billing\nManagement", "Summary")
         {
             CountY = 6,
             PreferredWidth = 13,
             OuterBorders = LineDrawer.ALL & ~LineDrawer.RIGHT
         };
 
-        private Calendar calendar = new Calendar();
+        private CalendarComponent calendar;
 
         public event EventHandler<ReferenceArgs<Dictionary<string, object>>> Finish;
 
-        public DefaultContent(Reference<int> CurrentWeek)
+        public DefaultContent(Reference<DateTime> CurrentWeek, DatabaseWrapper wrapper)
         {
+            calendar = new CalendarComponent(wrapper);
             calendar.CurrentWeek = CurrentWeek;
 
             Vertical = false;
@@ -495,22 +579,20 @@ namespace SchedulingUI
     /// <summary>
     /// The calendar on the right side of the default screen.
     /// </summary>
-	class Calendar: GridContainer
+	class CalendarComponent: GridContainer
 	{
         /// <summary>
         /// A reference to the current week. Used to get patient information.
         /// </summary>
-        public Reference<int> CurrentWeek { get; set; }
+        public Reference<DateTime> CurrentWeek { get; set; }
 
-        /// <summary>
-        /// The Scheduler. Used to query appointments.
-        /// </summary>
-        public AppointmentScheduler Scheduler { get; set; }
+        private DatabaseWrapper wrapper = null;
 
         private readonly Label[] Labels;
 
-		public Calendar()
+		public CalendarComponent(DatabaseWrapper wrapper)
 		{
+            this.wrapper = wrapper;
 			CountX = CalendarInfo.WEEK_LENGTH;
 			CountY = CalendarInfo.MAX_APPOINTMENTS2;
 			
@@ -541,15 +623,15 @@ namespace SchedulingUI
             
             for(int day = 0; day < CalendarInfo.WEEK_LENGTH; day++)
             {
-                for(int slot = 0; slot < CalendarInfo.MAX_APPOINTMENTS[day]; slot++)
+                Tuple<int, int, int>[] apts = wrapper.GetAppointmentsOnDay(CurrentWeek.Value.Month, day);
+
+                foreach (Tuple<int, int, int> apt in apts)
                 {
-                    Tuple<int, int> apt = Scheduler?.GetPatientIDs(new AptTimeSlot(1, CurrentWeek.Value, day, slot));
+                    int i = apt.Item3 * CountX + day;
 
-                    int i = slot * CountX + day;
-
-                    if (apt != null)
+                    if (apts[i] != null)
                     {
-                        Labels[i].Text = string.Format("{0}\n{1}", apt.Item1, apt.Item2);
+                        Labels[i].Text = string.Format("{0}\n{1}", apts[i].Item1, apts[i].Item2);
                     }
                     else
                     {
@@ -557,9 +639,7 @@ namespace SchedulingUI
                     }
                 }
             }
-            
         }
-
     }
 
     class BillingCodeEntryController : BinaryContainer, IInterfaceContent
@@ -599,6 +679,8 @@ namespace SchedulingUI
             Background = ColorCategory.HIGHLIGHT_BG_2
         };
 
+        private LineDrawer lines = LineDrawer.FromGlobal();
+        
         private InputController controller = new InputController();
         
         private Dictionary<string, Label> Codes = new Dictionary<string, Label>();
@@ -625,7 +707,7 @@ namespace SchedulingUI
             
             upper_controls.Add(Input, AddButton, RemoveButton);
 
-            Label padding = new Label("Scroll with U and J")
+            Label padding = new Label("\n\nScroll with U and J")
             {
                 Center = true
             };
@@ -649,8 +731,9 @@ namespace SchedulingUI
             RemoveButton.Action += RemoveCode_Action;
 
             FinishButton.Action += FinishButton_Action;
-
         }
+
+
 
         private void FinishButton_Action(object sender, ComponentEventArgs e)
         {
@@ -710,6 +793,9 @@ namespace SchedulingUI
             return false;
         }
 
+
+
+
         private void InitializeCodes(string[] codes)
         {
             foreach (var kvp in Codes)
@@ -729,6 +815,8 @@ namespace SchedulingUI
             }
         }
 
+
+
         public void Activate(params string[] arguments)
         {
             if(arguments != null && arguments.Length > 0)
@@ -747,6 +835,11 @@ namespace SchedulingUI
         public void Initialize(RootContainer root)
         {
 
+        }
+
+        public override void Draw(IConsole buffer)
+        {
+            base.Draw(buffer);
         }
     }
 
