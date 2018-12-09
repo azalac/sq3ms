@@ -22,10 +22,10 @@ billing codes:
 
 billing file:
 	pick a month
-	
+	pick a file
 
 reconcile:
-	pick a 
+	pick a file
 	[file is processed - no user interaction]
 	OR
 	user alerted of error, asked to retry or exit module
