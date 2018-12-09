@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace SchedulingUI
@@ -118,7 +119,29 @@ namespace SchedulingUI
 			return new Rectangle (x1, y1, x2 - x1 + 1, y2 - y1 + 1);
 		}
 
-	}
+        public static Rectangle Encompassing(IEnumerable<Tuple<int, int>> points)
+        {
+            List<int> xs = new List<int>();
+            List<int> ys = new List<int>();
+
+            foreach (Tuple<int, int> point in points)
+            {
+                xs.Add(point.Item1);
+                ys.Add(point.Item2);
+            }
+
+            if (xs.Count == 0)
+            {
+                return new Rectangle();
+            }
+
+            xs.Sort();
+            ys.Sort();
+
+            return BetweenCoords(xs.First(), ys.First(), xs.Last(), ys.Last());
+        }
+
+    }
 
     /// <summary>
     /// A class which helps with drawing lines and modifying the line buffer.
