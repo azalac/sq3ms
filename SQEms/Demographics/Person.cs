@@ -14,34 +14,73 @@ namespace Demographics
     public class PersonDB
     {
         private DatabaseTable People;
+        private DatabaseTable Households;
         public Logging logger = new Logging();
 
         public PersonDB(DatabaseManager database)
         {
             People = database["Patients"];
+            Households = database["Household"];
         }
-
+        
         /// <summary>
-        /// Finds a person by name 
+        /// Finds a person by various fields. If a field is null, it is ignored.
         /// </summary>
-        /// <param name="name">The name of the patient</param>
-        /// <param name="DateOfBirth">The optional DateOfBirth</param>
-        /// <returns>The patient ID</returns>
-        public int Find(string name, string DateOfBirth = null)
+        /// <param name="firstname">The firstname.</param>
+        /// <param name="initial">The middle initial.</param>
+        /// <param name="lastname">The lastname.</param>
+        /// <param name="phonenumber">The phonenumber.</param>
+        /// <param name="hcn">The health card number/</param>
+        /// <returns>All people who match</returns>
+        public IEnumerable<int> Find(string firstname, char? initial, string lastname, string phonenumber, string hcn)
         {
-            object pk = People.WhereEquals<string>("firstName", name).First();
-            int pID = 0;
+            List<string> columns = new List<string>();
+            List<object> values = new List<object>();
 
-            if (pk != null)
+            if (firstname != null)
             {
-                pID = (int)pk;
-            }
-            else
-            {
-                logger.Log(Definitions.LoggingInfo.ErrorLevel.WARN, "Patient Not Found");
+                columns.Add("firstName");
+                values.Add(firstname);
             }
 
-            return 0;
+            if (initial != null)
+            {
+                columns.Add("mInitial");
+                values.Add(initial);
+            }
+
+            if (lastname != null)
+            {
+                columns.Add("lastName");
+                values.Add(lastname);
+            }
+            
+            if (hcn != null)
+            {
+                columns.Add("HCN");
+                values.Add(hcn);
+            }
+
+            HashSet<int> people = new HashSet<int>(People.WhereEquals(string.Join(";", columns.ToArray()), values.ToArray()).Select(pk => (int)pk));
+            
+            if (phonenumber != null)
+            {
+                HashSet<int> valid = new HashSet<int>();
+
+                foreach (int person in people)
+                {
+                    string phone = (string)Households[People[person, "HouseID"], "numPhone"];
+
+                    if(Equals(phone, phonenumber))
+                    {
+                        valid.Add(person);
+                    }
+                }
+
+                return valid;
+            }
+
+            return people;
         }
 
         /// <summary>
