@@ -34,7 +34,6 @@ namespace Billing
             BillingMaster = database["BillingMaster"];
             Appointments = database["Appointments"];
             Patients = database["Patients"];
-
         }
 
         /// <summary>
@@ -44,41 +43,13 @@ namespace Billing
         /// <param name="code">The billing code</param>
 		public void AddBillingCode(int AppointmentID, string code)
         {
+            // sorry for mangling this, there was a lot of normalization issues with the db
+
             //Get billingID
             int billingID = BillingEntries.GetMaximum("BillingID") + 1;
-
-            //Get Key of Appointments row
-            object key = Appointments.WhereEquals("AppointmentID", AppointmentID).First();
-
-            int.TryParse(key.ToString(), out int AppPK);
-
-            //Get month week day from appointment
-            int.TryParse(Appointments[AppPK, "Month"].ToString(), out int month);
-            int.TryParse(Appointments[AppPK, "Week"].ToString(), out int week);
-            int.TryParse(Appointments[AppPK, "Day"].ToString(), out int day);
-            string date = (month + ", " + week + ", " + day);
-
-            //Get key of Patients where PatientID = PatientID in Appointments
-            key = Patients.WhereEquals("PatientID", Appointments[AppPK, "PatientID"]).First();
-
-            //Parse information
-            int.TryParse(key.ToString(), out int Ppk);
-
-            //Get HCN and sex
-            string HCN = Patients[Ppk, "HCN"].ToString();
-            Definitions.SexTypes sex = (Definitions.SexTypes)Patients[Ppk, "sex"];
-
-            //Get key of BillingMaster where BillingCode = code
-            key = BillingMaster.WhereEquals("BillingCode", code).First();
-
-            //Get fee from BillinMaster
-            string fee = BillingMaster[key, "DollarAmount"].ToString();
-
-            //Set the ministry reponse to none
-            object codeResponse = Definitions.BillingCodeResponse.NONE;
-
+            
             //Insert the information into the database
-            BillingEntries.Insert(billingID, AppointmentID, date, HCN, sex, code, fee, codeResponse);            
+            BillingEntries.Insert(billingID, AppointmentID, code, Definitions.BillingCodeResponse.NONE);            
         }
 
         /// <summary>
@@ -99,6 +70,17 @@ namespace Billing
         }
 
         /// <summary>
+        /// Gets all billable procedures for a given appointment.
+        /// </summary>
+        /// <param name="appointment">The appointment</param>
+        /// <returns>The procedure codes</returns>
+        public IEnumerable<string> GetBillableProceduresFor(int appointment)
+        {
+            return BillingEntries.WhereEquals("AppointmentID", appointment)
+                .Select(pk => (string)BillingEntries[pk, "BillingCode"]);
+        }
+
+        /// <summary>
         /// Gets all billing entries for a given appointment.
         /// </summary>
         /// <param name="AppointmentID">The appointment</param>
@@ -108,8 +90,7 @@ namespace Billing
             //Loop through each entry to check value that matches appointment ID by searched for
             foreach (object key in BillingEntries.WhereEquals("AppointmentID", AppointmentID))
             {
-                int.TryParse(key.ToString(), out int pk);
-                yield return pk;
+                yield return (int)key;
             }
             yield break;
         }
