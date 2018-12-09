@@ -43,7 +43,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Framework\InterfaceControllers.cs" />
+    <Compile Include="DebugLog.cs" />
+    <Compile Include="Framework\InterfaceController.cs" />
     <Compile Include="InterfaceContentHelpers.cs" />
     <Compile Include="PatientsController.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -55,6 +56,7 @@
     <Compile Include="Framework\SimpleWidgets.cs" />
     <Compile Include="Controller.cs" />
     <Compile Include="SchedulingController.cs" />
+    <Compile Include="WorkflowController.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ItemGroup />
