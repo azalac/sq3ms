@@ -3,6 +3,7 @@ using Support;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 
 namespace SchedulingUI
 {
@@ -30,14 +31,13 @@ namespace SchedulingUI
             InitializeRoot(buffer);
 
             InitializeContent();
-
-            InitializeWorkflows();
-
+            
             Root.DoLayout();
 
-            Root.Draw();
-            
             UserInput.StartThread();
+
+            Root.Draw();
+
         }
 
         private void HandleMenuSelect(object sender, ReferenceArgs<Dictionary<string, object>> e)
@@ -82,22 +82,16 @@ namespace SchedulingUI
 
             InitialContent.Finish += HandleMenuSelect;
 
-            TimeSlotSelectionController TimeSlotContent = new TimeSlotSelectionController();
-
-            CancelRequestController cancel = new CancelRequestController();
-
-            ButtonSelector select = new ButtonSelector("select", 2, "one", "two", "three");
-
-            select.SetActionFinishes("one", "option", 1);
-            select.SetActionFinishes("two", "option", 2);
-            select.SetActionFinishes("three", "option2", 3);
-
-            select.Message = "This is a message";
-
             AddContent(InitialContent);
-            AddContent(TimeSlotContent);
-            AddContent(cancel);
-            AddContent(select);
+
+            AddContent(new CancelRequestController());
+            AddContent(new PersonDataEntry());
+
+
+
+            WorkflowInitializer.SetupSchedulingContent(AddContent, WorkflowController);
+
+
 
             ContentController.ContentChanged += (object sender, ReferenceArgs<IInterfaceContent> args) =>
             {
@@ -113,29 +107,6 @@ namespace SchedulingUI
             ContentController.Default = InitialContent.Name;
 
             ContentController.Activate(ContentController.Default);
-
-        }
-
-        private void InitializeWorkflows()
-        {
-            WorkflowController.AddWorkflow("Schedule Apt", "select;select", Accept, Validate, Validate);
-        }
-        
-        private bool Validate(Dictionary<string, object> values, out string error_msg)
-        {
-            if(InterfaceWorkflowController.CheckEquals(values, "option", 1))
-            {
-                error_msg = "Option cannot be 1";
-                return false;
-            }
-
-            error_msg = "";
-            return true;
-        }
-
-        private void Accept(Dictionary<string, object> values)
-        {
-            Debug.WriteLine(values);
         }
         
         private void AddContent(object obj)
@@ -170,6 +141,163 @@ namespace SchedulingUI
 
     }
     
+    static class WorkflowInitializer
+    {
+        
+        public static void SetupSchedulingContent(Action<object> content_adder, InterfaceWorkflowController controller)
+        {
+            SchedulingWorkflowInitializer.Initialize(content_adder, controller);
+
+            BillingWorkflowInitializer.Initialize(content_adder, controller);
+        }
+        
+    }
+
+    static class SchedulingWorkflowInitializer
+    {
+
+        public static void Initialize(Action<object> content_adder, InterfaceWorkflowController controller)
+        {
+            
+            ButtonSelector timeselector = new ButtonSelector("TimeslotSelect", 3, "Dummy");
+
+            timeselector.BindButtonToOption("Dummy", "time", null);
+
+            content_adder(timeselector);
+
+
+
+            ButtonSelector searchtypeselect = new ButtonSelector("PersonSearchType", 2,
+                "Search", "Add New Person");
+
+            searchtypeselect.BindButtonToOption("Search", "option", "search");
+
+            searchtypeselect.BindButtonToOption("Add New Person", "option", "addperson");
+
+            content_adder(searchtypeselect);
+
+
+
+            ButtonSelector hascaregiver = new ButtonSelector("AddCaregiver", 3,
+                "Yes", "No");
+
+            hascaregiver.BindButtonToOption("Yes", "hascaregiver", true);
+            hascaregiver.BindButtonToOption("No", "hascaregiver", false);
+
+            content_adder(hascaregiver);
+
+
+            controller.AddWorkflow("Schedule Apt",
+                "TimeslotSelect;" +
+                "PersonSearchType(:Search for or Add Patient?);" +
+                "PersonDataEntry(!searching);" +
+                "AddCaregiver(:Add Caregiver to Appointment?)",
+                AcceptScheduleData, ScheduleRedirect,
+                null, PatientSearchTypeValidator, SearchPersonValidator, null);
+
+            controller.AddWorkflow("Add Caregiver",
+                "PersonSearchType(:Search for or Add Caregiver?);PersonDataEntry;",
+                AcceptAddCaregiverData, null,
+                CaregiverSearchTypeValidator, SearchPersonValidator);
+
+
+        }
+
+        private static Dictionary<string, object> AcceptScheduleData(Dictionary<string, object> data)
+        {
+            DebugLog.LogOther("Schedule Apt: " + string.Join(", ", from kvp in data select kvp.Key + "=" + kvp.Value));
+
+            return null;
+        }
+
+        private static bool PatientSearchTypeValidator(Dictionary<string, object> values, out string message)
+        {
+
+            if (values.ContainsKey("option"))
+            {
+                values["searching"] = InterfaceWorkflowController.CheckEquals(values, "option", "search");
+                values["patient_option"] = values["option"];
+            }
+
+            message = "";
+
+            return true;
+        }
+
+        private static bool SearchPersonValidator(Dictionary<string, object> values, out string message)
+        {
+            message = "";
+
+            // do nothing when adding a person
+            if (InterfaceWorkflowController.CheckEquals(values, "searching", false))
+            {
+                return true;
+            }
+
+            // validate that person exists here
+
+            return true;
+        }
+
+        private static bool CaregiverSearchTypeValidator(Dictionary<string, object> values, out string message)
+        {
+            if (values.ContainsKey("option"))
+            {
+                values["searching"] = InterfaceWorkflowController.CheckEquals(values, "option", "search");
+                values["caregiver_option"] = values["option"];
+            }
+
+            message = "";
+
+            return true;
+        }
+
+        private static string ScheduleRedirect(int stage, string stage_name, bool valid, Dictionary<string, object> values)
+        {
+            if (Equals(stage_name, "AddCaregiver") && valid && InterfaceWorkflowController.CheckEquals(values, "hascaregiver", true))
+            {
+                return "Add Caregiver";
+            }
+
+            return null;
+        }
+
+        private static Dictionary<string, object> AcceptAddCaregiverData(Dictionary<string, object> data)
+        {
+            DebugLog.LogOther("Add Caregiver: " + string.Join(", ", from kvp in data select kvp.Key + "=" + kvp.Value));
+
+            return new Dictionary<string, object>() { };
+        }
+
+    }
+
+    static class BillingWorkflowInitializer
+    {
+
+        public static void Initialize(Action<object> content_adder, InterfaceWorkflowController controller)
+        {
+            content_adder(new BillingCodeEntryController());
+
+            ButtonSelector recall = new ButtonSelector("AppointmentRecall", 2, "None", "One Week", "Two Weeks", "Three Weeks");
+
+            content_adder(recall);
+
+            controller.AddWorkflow("Billing",
+                "BillingCodeEntry;" +
+                "AppointmentRecall;",
+                AcceptData);
+
+        }
+
+        private static Dictionary<string, object> AcceptData(Dictionary<string, object> data)
+        {
+            DebugLog.LogOther("Billing: " + string.Join(", ", from kvp in data select kvp.Key + "=" + kvp.Value));
+
+            return null;
+        }
+
+    }
+
     /// <summary>
     /// The week header at the top of the console.
     /// </summary>
@@ -242,7 +370,7 @@ namespace SchedulingUI
 
             Week = new Reference<int>(0);
             
-            update_label_text();
+            UpdateLabelText();
         }
 
         protected override bool HandleKeyPress(object sender, ConsoleKeyEventArgs args)
@@ -257,13 +385,13 @@ namespace SchedulingUI
             if (args.Key.Key == ConsoleKey.I)
             {
                 Week.Value--;
-                update_label_text();
+                UpdateLabelText();
                 handled = true;
             }
             else if (args.Key.Key == ConsoleKey.K)
             {
                 Week.Value++;
-                update_label_text();
+                UpdateLabelText();
                 handled = true;
             }
 
@@ -271,7 +399,7 @@ namespace SchedulingUI
             
         }
 
-        private void update_label_text()
+        private void UpdateLabelText()
         {
             nav_instructions.Text = string.Format("I /\\\nMONTH {0}\nK \\/", Week.Value);
 
@@ -352,7 +480,7 @@ namespace SchedulingUI
 
         }
 
-        public void Activate()
+        public void Activate(params string[] arguments)
         {
             menu.Activate();
         }
@@ -433,4 +561,193 @@ namespace SchedulingUI
         }
 
     }
+
+    class BillingCodeEntryController : BinaryContainer, IInterfaceContent
+    {
+        private const ConsoleKey SCROLL_UP = ConsoleKey.U,
+            SCROLL_DOWN = ConsoleKey.J;
+
+        public string Name => "BillingCodeEntry";
+
+        public event EventHandler<ReferenceArgs<Dictionary<string, object>>> Finish;
+
+        private TextInput Input = new TextInput()
+        {
+            TextLength = 5
+        };
+
+        private Button AddButton = new Button()
+        {
+            Text = "Add"
+        };
+
+        private Button RemoveButton = new Button()
+        {
+            Text = "Remove"
+        };
+
+        private Button FinishButton = new Button()
+        {
+            Text = "Finish",
+            Center = true,
+            PreferredHeight = 2
+        };
+
+        private ScrollableContainer CodeDisplay = new ScrollableContainer()
+        {
+            ComponentHeight = 2,
+            Background = ColorCategory.HIGHLIGHT_BG_2
+        };
+
+        private InputController controller = new InputController();
+        
+        private Dictionary<string, Label> Codes = new Dictionary<string, Label>();
+
+
+        public BillingCodeEntryController()
+        {
+            InitializeComponents();
+        }
+
+        private void InitializeComponents()
+        {
+            TernaryContainer controls = new TernaryContainer()
+            {
+                Vertical = true,
+                PreferredWidth = 20
+            };
+
+            GridContainer upper_controls = new GridContainer()
+            {
+                CountY = 3,
+                PreferredHeight = 6
+            };
+            
+            upper_controls.Add(Input, AddButton, RemoveButton);
+
+            Label padding = new Label("Scroll with U and J")
+            {
+                Center = true
+            };
+
+            controls.First = upper_controls;
+            controls.Second = padding;
+            controls.Third = FinishButton;
+
+            controls.Add(upper_controls, padding, FinishButton);
+
+            First = controls;
+            Second = CodeDisplay;
+
+            Add(controls, CodeDisplay);
+
+            controller.Add(Input, AddButton, RemoveButton, FinishButton);
+            controller.Parent = this;
+
+            AddButton.Action += AddCode_Action;
+
+            RemoveButton.Action += RemoveCode_Action;
+
+            FinishButton.Action += FinishButton_Action;
+
+        }
+
+        private void FinishButton_Action(object sender, ComponentEventArgs e)
+        {
+            Finish?.Invoke(this, new ReferenceArgs<Dictionary<string, object>>(
+                new Dictionary<string, object> { ["codes"] = new List<string>(Codes.Keys) }
+            ));
+        }
+
+        private void AddCode_Action(object sender, ComponentEventArgs e)
+        {
+            if(Input.Text.Length == 4)
+            {
+                Label label = new Label(Input.Text);
+
+                Codes[Input.Text] = label;
+
+                CodeDisplay.Add(label);
+
+                CodeDisplay.DoLayout();
+
+                Input.Clear();
+
+                OnRequestRedraw(this, new RedrawEventArgs(Input));
+                OnRequestRedraw(this, new RedrawEventArgs(CodeDisplay));
+            }
+        }
+
+        private void RemoveCode_Action(object sender, ComponentEventArgs e)
+        {
+            if (Input.Text.Length == 4 && Codes.ContainsKey(Input.Text))
+            {
+                CodeDisplay.Remove(Codes[Input.Text]);
+
+                Codes.Remove(Input.Text);
+
+                Input.Clear();
+
+                CodeDisplay.DoLayout();
+
+                OnRequestRedraw(this, new RedrawEventArgs(Input));
+                OnRequestRedraw(this, new RedrawEventArgs(CodeDisplay));
+            }
+        }
+
+        protected override bool HandleKeyPress(object keyboard, ConsoleKeyEventArgs args)
+        {
+            if(args.Key.Key == SCROLL_UP)
+            {
+                CodeDisplay.ScrollUp();
+                return true;
+            }
+            if(args.Key.Key == SCROLL_DOWN)
+            {
+                CodeDisplay.ScrollDown();
+                return true;
+            }
+            return false;
+        }
+
+        private void InitializeCodes(string[] codes)
+        {
+            foreach (var kvp in Codes)
+            {
+                CodeDisplay.Remove(kvp.Value);
+            }
+
+            Codes.Clear();
+
+            foreach (string code in codes)
+            {
+                Label label = new Label(code);
+
+                CodeDisplay.Add(label);
+
+                Codes[code] = label;
+            }
+        }
+
+        public void Activate(params string[] arguments)
+        {
+            if(arguments != null && arguments.Length > 0)
+            {
+                InitializeCodes(arguments[0].Split(';').Select(s => s.Trim()).ToArray());
+            }
+
+            controller.Activate();
+        }
+        
+        public void Deactivate()
+        {
+            controller.Deactivate();
+        }
+
+        public void Initialize(RootContainer root)
+        {
+
+        }
+    }
+
 }
