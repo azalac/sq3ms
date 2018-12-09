@@ -108,7 +108,6 @@ namespace Support
             Columns = new string[]{
                 "AppointmentID",
                 "Month",
-                "Week",
                 "Day",
                 "TimeSlot",
                 "PatientID",
@@ -116,7 +115,6 @@ namespace Support
             };
 
             ColumnTypes = new Type[] {
-                typeof(Int32),
                 typeof(Int32),
                 typeof(Int32),
                 typeof(Int32),
@@ -206,43 +204,39 @@ namespace Support
 
     }
 
+    /// <summary>
+    /// The table which represents all billable procedures.
+    /// </summary>
+    /// <remarks>
+    /// Columns:
+    /// 
+    /// BillingID - Int32 - PK
+    /// AppointmentID - Int32 - FK(Appointments)
+    /// BillingCode - string - FK(BillingMaster)
+    /// CodeResponse - BillingCodeResponse
+    /// 
+    /// </remarks>
     public class BillingCodeTable : DatabaseTablePrototype
     {
-        public BillingCodeTable() : base(10)
+        public BillingCodeTable() : base(4)
         {
             Name = "Billing";
 
             Columns = new string[] { "BillingID",
                                      "AppointmentID",
-                                     "Month",
-                                     "Week",
-                                     "Day",
-                                     "HCN",
-                                     "Gender",
                                      "BillingCode",
-                                     "Fee",
                                      "CodeResponse" };
 
             ColumnTypes = new Type[] {
                 typeof(Int32),
                 typeof(Int32),
-                typeof(Int32),
-                typeof(Int32),
-                typeof(Int32),
-                typeof(string),
-                typeof(SexTypes),
-                typeof(string),
                 typeof(string),
                 typeof(BillingCodeResponse)
             };
+            
+            ColumnReaders[3] = (r) => (BillingCodeResponse)r.ReadInt32();
 
-            ColumnReaders[6] = (r) => (SexTypes)r.ReadInt32();
-
-            ColumnWriters[6] = (r, o) => r.Write(Convert.ToInt32(o));
-
-            ColumnReaders[9] = (r) => (BillingCodeResponse)r.ReadInt32();
-
-            ColumnWriters[9] = (r, o) => r.Write(Convert.ToInt32(o));
+            ColumnWriters[3] = (r, o) => r.Write(Convert.ToInt32(o));
 
             PrimaryKeyIndex = 0;
 
