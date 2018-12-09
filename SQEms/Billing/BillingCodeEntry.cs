@@ -11,9 +11,50 @@ using System.Text;
 using Definitions;
 using Support;
 using System.IO;
+using System.Text.RegularExpressions;
+using System.Collections.Generic;
 
 namespace Billing
 {
+    struct BillableProcedure
+    {
+        public int year, month, day;
+        public string HCN;
+        public char sex;
+        public string code;
+        public string fee;
+        public string response;
+
+        public override bool Equals(object obj)
+        {
+            if (!(obj is BillableProcedure))
+            {
+                return false;
+            }
+
+            var procedure = (BillableProcedure)obj;
+            return year == procedure.year &&
+                   month == procedure.month &&
+                   day == procedure.day &&
+                   HCN == procedure.HCN &&
+                   sex == procedure.sex &&
+                   code == procedure.code;
+        }
+
+        public override int GetHashCode()
+        {
+            var hashCode = 1805857402;
+            hashCode = hashCode * -1521134295 + base.GetHashCode();
+            hashCode = hashCode * -1521134295 + year.GetHashCode();
+            hashCode = hashCode * -1521134295 + month.GetHashCode();
+            hashCode = hashCode * -1521134295 + day.GetHashCode();
+            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(HCN);
+            hashCode = hashCode * -1521134295 + sex.GetHashCode();
+            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(code);
+            return hashCode;
+        }
+    }
+
     /// <summary>
     /// Reads & Writes MOH billing files and generates monthly summaries.
     /// </summary>
@@ -24,14 +65,21 @@ namespace Billing
     /// The first 8 characters are the DateOfService (YYYYMMDD).
     /// The next 12 characters are the patient's HCN (10 numeric, 2 alphabetic).
     /// The next 1 character is the patient's sex (M/F/I/H, <see cref="SexTypes"/>).
+    /// The next 4 characters are the billing code.
     /// The next 11 characters are the Fee (7 integers, 4 decimals, no period, zero padded).
     /// 
     /// </remarks>
     public class BillingFileInteraction
     {
+        private const string BP_REGEX = 
+            @"^(?'year'\d{4})(?'month'\d{2})(?'day'\d{2})(?'hcn'\d{10}\w{2})(?'sex'M|F|I|H)(?'code'\w\d{3})(?'amt'\d{11})(?'resp'PAID|DECL|FHCV|CMOH)?$";
+
         //Definitions of class level variables
-        private static DatabaseTable billing;
-        private static DatabaseTable billingMaster;
+        private DatabaseTable procedures;
+        private DatabaseTable billingMaster;
+
+        private DatabaseTable people;
+        private DatabaseTable appointments;
 
         /// <summary>
         /// Constructor that initializes class level variables
@@ -40,128 +88,51 @@ namespace Billing
         
         public BillingFileInteraction(DatabaseManager database)
         {
-            billing = database["Billing"];
-            billingMaster = database["BillingMaster"];        
+            procedures = database["Billing"];
+            billingMaster = database["BillingMaster"];
+
+            people = database["Patients"];
+            appointments = database["Appointments"];
         }
-
+        
         /// <summary>
-        /// Writes the billing information to the file at the given path.
+        /// Generates a billable procedure line.
         /// </summary>
-        /// <param name="database"> Used to obtain the information for billing code</param>
-        /// <param name="feeCode"> The fee code generated depending on the encounter</param>
-        /// <param name="appID"> The appointment ID</param>
-
-        public void CreateBillingCode(DatabaseManager database, string feeCode, object appID)
-        {
-
-            //Create a new instance of the log class - used for errors
-            Logging logger = new Logging();
-
-            //Get the appointment ID passed in
-            int ID;
-
-            //Try and convert the object to an int(if not an int already) - > if errors, please change
-            try
-            {
-                ID = (int)appID;
-            }
-            catch (Exception)
-            {
-
-                //Log the error
-                logger.Log(LoggingInfo.ErrorLevel.ERROR, "Could not successfully parse the appointment ID");
-                return;
-            }
-
-            //Gets the current date of service
-            string date = GetDateOfService();
-
-            //Set database table variables with information 
-            DatabaseTable Master = database["BillingMaster"];
-            DatabaseTable testBilling = database["Billing"];
-
-            //Set an object variable that holds the primary key for dollar amount
-            object name = null;
-
-            try
-            {
-                //Look in the Masterfile database for the feeCode being searched for
-                name = Master.WhereEquals<string>("BillingCode", feeCode).First();
-            }
-
-            //If the feeCode doesn't exist
-            catch (InvalidOperationException)
-            {
-                //Log the error
-                logger.Log(LoggingInfo.ErrorLevel.ERROR, "Billing Code was not found in database");
-                return;
-            }
-
-            //Convert the name of the object to a string
-            string BillName = name.ToString();
-
-            //Use the feeCode found and search for the fee amount in the DollarAmount coloumn
-            object cost = Master[BillName, "DollarAmount"];
-
-            //Convert the cost of the object to a string
-            string costWithDecimal = cost.ToString();
-
-            //Create a string array to split the cost to get rid of decimal
-            string[] numSplit = costWithDecimal.Split('.');
-
-            //Combine the left side and right side of cost
-            string finalCost = numSplit[0] + numSplit[1];
-
-            //Create an instance of the patients table to obtain health card with patient ID
-            DatabaseTable patientInfo = database["Patients"];
-
-            //Store the info in an object
-            object info = patientInfo[ID, "HCN"];
-
-            //Convert object to string
-            string patientHCN = info.ToString();
-
-            //Store the sex info in an object
-            object patientSex = patientInfo[ID, "sex"];
-
-            //Conver the object to a string
-            string sex = patientSex.ToString();
-
-            //Create the billing code to send to text file - need to left pad final code and fee code
-            string tempBillingCode = date + patientHCN + sex + feeCode + finalCost + "00";
-
-            //Get the length of the billing file
-            int length = tempBillingCode.Length;
-
-            //A string to hold the number of 0's needed to pad the cost
-            string zeroPadded = "";
-
-            //Loop through and get the number of zeroes needed to pad cost (if number is huge, not a lot of zeroes, etc)
-            for (int padLength = length; padLength < 36; padLength++)
-            {
-                zeroPadded = zeroPadded + "0";
-            }
-
-            //Generate the final response code to send to the ministry
-            string finalResponse = date + patientHCN + sex + feeCode + zeroPadded + finalCost + "00";
-
-            //Write information to billing codes file
-            WriteInfoToFile("../../BillingCodes.txt", finalResponse);
-        }
-
-        /// <summary>
-        /// Writes the billing information to the file at the given path.
-        /// </summary>
-        /// <param name="path"> Path to write the constructed billing code to </param>
-        /// <param name="info"> The billing code</param>
+        /// <remarks>
         /// 
-        private void WriteInfoToFile(string path, string info)
+        /// Format:
+        /// 
+        /// 20171120 1234567890KV F   A665 00000913500
+        /// YYYYMMDD HCN          Sex Code Price
+        /// 
+        /// Note: there are no spaces in the actual line
+        /// 
+        /// </remarks>
+        /// <param name="aptID"> The appointment ID</param>
+        /// <param name="procID"> The proceduer ID</param>
+        public string GenerateBillableProcedureLine(int appointment, int procedure)
         {
-            //Write to the file specified
-            using (StreamWriter sw = File.AppendText(path))
-            {
-                sw.WriteLine(info);
-            }
+            // Blake, sorry for mangling your function, but it didn't do what it needs to.
+
+            int month = (int)appointments[appointment, "Month"];
+            DateTime date = new DateTime(CalendarManager.ConvertMonthToYear(ref month), month, (int)appointments[appointment, "Day"]);
+
+            object patient_pk = appointments[appointment, "PatientID"];
+
+            string HCN = (string)people[patient_pk, "HCN"];
+
+            SexTypes sex = (SexTypes)people[patient_pk, "sex"];
+
+            string code = (string)procedures[procedure, "BillingCode"];
+
+            string price = (string)billingMaster[code, "DollarAmount"];
+
+            return date.ToString("YYYYMMDD") + HCN + sex.ToString() + code + price;
+        }
+        
+        public void GenerateMonthlyBillingFile(int month, string path)
+        {
+            FileIO.WriteAllBillableProcedures(path, appointments, procedures, month, GenerateBillableProcedureLine);
         }
 
         /// <summary>
@@ -193,16 +164,16 @@ namespace Billing
             float averageBilling = 0;
             
             //Loop through each billing code where the month is the month specified
-            foreach(object key in billing.WhereEquals("Month", month))
+            foreach(object key in procedures.WhereEquals("Month", month))
             {
                 totalEncounters++;
 
                 //Convert the value
-                float.TryParse(billing[key, "Fee"].ToString(), out float billed);
+                float.TryParse(procedures[key, "Fee"].ToString(), out float billed);
                 billedProcedures += billed;
 
                 //If the result is paid
-                if ((BillingCodeResponse)billing[key, "CodeResponse"] == BillingCodeResponse.PAID)
+                if ((BillingCodeResponse)procedures[key, "CodeResponse"] == BillingCodeResponse.PAID)
                 {
                     paidEncounters++;
                     receivedTotal += billed;
@@ -227,72 +198,183 @@ namespace Billing
                                     "Average Billing: {4}\n" +
                                     "Encounters To Follow-up: {5}\n", 
                                     totalEncounters, billedProcedures, receivedTotal, receivedPercentage, averageBilling, toFollowEncounters);
-
-            //Write the information to a file
-            WriteInfoToFile("../../MonthlyReport.txt", saveToFile.ToString());
+            
         }
-
-        /// <summary>
-        /// Gets the current date in a specified format
-        /// </summary>
-        /// <returns>string strToday</returns>
-        public static string GetDateOfService()
-        {
-            DateTime theDate = DateTime.Now;
-            string strToday = theDate.ToString("yyyyMMdd");
-            return strToday;
-        }
-
+        
         /// <summary>
         /// Parse the response code lines in file provided
         /// </summary>
-        /// <param name="path"> Path which contains response codes </param>
-        /// 
-
-        public void ParseResponseFile(string path)
+        /// <param name="original"> The original data </param>
+        /// <param name="response"> The response data </param>
+        ///
+        public bool ParseResponse(int month, string path)
         {
             //Create a new instance of the log class - used for errors
             Logging logger = new Logging();
 
-            //Store all of the lines from response file in a string array
-            string[] responseLines = File.ReadAllLines(path);
+            string[] data = FileIO.GetResponseFileData(path);
 
-            //For each response code
-            foreach(string respCode in responseLines)
+            if(data == null)
             {
-                //If the length of the code is 40 characters (if not 40 characters, skip the line)
-                if(respCode.Length == 40)
-                {
-                    //Integer variables that represent the date
-                    int intYear = 0;
-                    int intMonth = 0;
-                    int intDay = 0;
-
-                    //Create string variables that hold parsed information from response string
-                    string yearString = respCode.Substring(0, 4);
-                    string monthString = respCode.Substring(4, 2);
-                    string dayString = respCode.Substring(6, 2);
-                    string hcn = respCode.Substring(8, 12);
-                    string paymentStatus = respCode.Substring((respCode.Length - 4), 4);
-
-                    //Try and convert string to int
-                    try
-                    {
-                        //Convert each date string into an int
-                        intYear = int.Parse(yearString);
-                        intMonth = int.Parse(monthString);
-                        intDay = int.Parse(dayString);
-                    }
-
-                    //If an exception was thrown
-                    catch (Exception)
-                    {
-                        logger.Log(LoggingInfo.ErrorLevel.ERROR, "Error converting info in response file");
-                    }
-
-                    //ADD LOGIC FOR CHANGING THE PAYMENT STATUS TO RESPONSE FILE STATUS IN BILLING
-                }              
+                return false;
             }
+
+            MatchProcedures(month, ParseData(data, logger), logger);
+
+            return true;
         }
+        
+        private void MatchProcedures(int month, Dictionary<BillableProcedure, List<string>> response, Logging logger = null)
+        {
+            Dictionary<BillableProcedure, List<int>> pks = BillingDBAsDict(month);
+
+            foreach(BillableProcedure bp in response.Keys)
+            {
+                if(pks[bp].Count != response[bp].Count)
+                {
+                    logger?.Log(LoggingInfo.ErrorLevel.ERROR, "Billable procedure response and database data mistmatch for procedure " + bp);
+                    continue;
+                }
+
+                var zipped = response[bp].Zip(pks[bp], (s, i) => new Tuple<int, string>(i, s));
+
+                foreach(Tuple<int, string> procedure in zipped)
+                {
+                    procedures[procedure.Item1, "ResponseCode"] = procedure.Item2;
+                }
+
+                logger?.Log(LoggingInfo.ErrorLevel.INFO, "Successfully merged billable procedures for " + pks[bp] + " and " + response[bp]);
+            }
+
+            logger?.Log(LoggingInfo.ErrorLevel.INFO, "Finished merging billable procedure responses");
+        }
+
+        private Dictionary<BillableProcedure, List<string>> ParseData(string[] data, Logging logger = null)
+        {
+            Dictionary<BillableProcedure, List<string>> _data = new Dictionary<BillableProcedure, List<string>>();
+
+            foreach (string line in data)
+            {
+                try
+                {
+                    BillableProcedure bp = ParseProcedure(line);
+
+                    List<string> codes = _data.ContainsKey(bp) ? _data[bp] : new List<string>();
+
+                    codes.Add(bp.code);
+
+                    _data[bp] = codes;
+                }
+                catch (ArgumentException e)
+                {
+                    logger?.Log(LoggingInfo.ErrorLevel.ERROR, e.Message);
+                    continue;
+                }
+            }
+
+            return _data;
+        }
+
+        private BillableProcedure ParseProcedure(string line)
+        {
+            Match match = Regex.Match(line, BP_REGEX);
+            
+            if(!match.Success)
+            {
+                throw new ArgumentException("Invalid line '" + line + "'");
+            }
+
+            BillableProcedure bp = new BillableProcedure();
+
+            bp.year = int.Parse(match.Groups["year"].Value);
+            bp.month = int.Parse(match.Groups["month"].Value);
+            bp.day = int.Parse(match.Groups["day"].Value);
+
+            bp.HCN = match.Groups["hcn"].Value;
+            bp.sex = match.Groups["sex"].Value[0];
+            bp.code = match.Groups["code"].Value;
+            bp.fee = match.Groups["fee"].Value;
+
+            bp.response = match.Groups["resp"].Value;
+
+            return bp;
+        }
+
+        private Dictionary<Tuple<AptTimeSlot, string, string>, List<BillableProcedure>> FromHashset(HashSet<BillableProcedure> set)
+        {
+            Dictionary<Tuple<AptTimeSlot, string, string>, List<BillableProcedure>> dict =
+                new Dictionary<Tuple<AptTimeSlot, string, string>, List<BillableProcedure>>();
+
+            foreach(BillableProcedure bp in set)
+            {
+                AptTimeSlot slot = new AptTimeSlot(bp.month, bp.day, 0);
+
+                Tuple<AptTimeSlot, string, string> key = new Tuple<AptTimeSlot, string, string>(slot, bp.HCN, bp.code);
+
+                List<BillableProcedure> pks = dict.ContainsKey(key) ?
+                    dict[key] : new List<BillableProcedure>();
+
+                pks.Add(bp);
+
+                dict[key] = pks;
+            }
+
+            return dict;
+        }
+
+        /// <summary>
+        /// Reinterperits the billable procedure table as a dictionary between
+        /// a billable procedure (one per day:patient:code) and a list of the pks
+        /// for each procedure which share the attributes.
+        /// </summary>
+        /// <remarks>
+        /// 
+        /// My idea for this is to do the same as this, but instead of pks, it's
+        /// a list of response codes. Then, each code *should* have a matching
+        /// pk, which will allow me to mark specific billable procedures as
+        /// invalid.
+        /// 
+        /// </remarks>
+        /// <param name="target_month">The current month</param>
+        /// <returns>The dictionary.</returns>
+        private Dictionary<BillableProcedure, List<int>> BillingDBAsDict(int target_month)
+        {
+            Dictionary<BillableProcedure, List<int>> dict = new Dictionary<BillableProcedure, List<int>>();
+
+            foreach(object pk in procedures["BillingID"])
+            {
+                BillableProcedure bp = new BillableProcedure();
+
+                int aptid = (int)procedures[pk, "AppointmentID"];
+
+                int month = (int)appointments[aptid, "Month"];
+
+                if(month != target_month)
+                {
+                    continue;
+                }
+                
+                bp.year = CalendarManager.ConvertMonthToYear(ref month);
+                bp.month = month;
+
+                bp.day = (int)appointments[aptid, "Day"];
+                
+                bp.HCN = (string)people[procedures[pk, "PatientID"], "HCN"];
+                bp.code = (string)procedures[pk, "BillingCode"];
+
+                bp.sex = people[appointments[aptid, "PatientID"], "sex"].ToString()[0];
+
+                bp.fee = (string)billingMaster[bp.code, "DollarAmount"];
+                
+                List<int> pks = dict.ContainsKey(bp) ? dict[bp] : new List<int>();
+
+                pks.Add((int)pk);
+
+                dict[bp] = pks;
+            }
+
+            return dict;
+        }
+
     }   
 }
