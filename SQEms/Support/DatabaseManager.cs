@@ -115,6 +115,11 @@ namespace Support
 		/// </summary>
 		public void Load()
 		{
+            if(!File.Exists(Location))
+            {
+                File.Create(Location);
+            }
+
             // call the custom reader if there is one
             if(prototype.CustomReader != null)
             {
@@ -144,7 +149,13 @@ namespace Support
 			{
                 if (File.Exists(Location))
                 {
-                    // save a backup, if possible
+                    // delete old backup
+                    if (File.Exists(Location + "~"))
+                    {
+                        File.Delete(Location + "~");
+                    }
+
+                    // save a backup
                     File.Move(Location, Location + "~");
                 }
 
