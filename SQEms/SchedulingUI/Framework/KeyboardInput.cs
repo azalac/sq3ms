@@ -75,7 +75,7 @@ namespace SchedulingUI
 
 				ConsoleKeyInfo key = Console.ReadKey (true);
 
-                System.Diagnostics.Debug.WriteLine("Handling key: " + key.Key);
+                DebugLog.LogComponent("Handling KEY: " + key.Key);
 
 				if (Container != null)
 				{
@@ -88,7 +88,7 @@ namespace SchedulingUI
 				}
 				else
 				{
-					System.Diagnostics.Debug.WriteLine ("Warning: RootContainer is null");
+					DebugLog.LogComponent ("Warning: RootContainer is null");
 				}
 
 				if (ExitKey != 0 && key.Key == ExitKey)
