@@ -158,7 +158,7 @@ namespace SchedulingUI
         {
             new SchedulingWorkflowInitializer(wrapper).Initialize(content_adder, controller);
 
-            BillingWorkflowInitializer.Initialize(content_adder, controller);
+            new BillingWorkflowInitializer(wrapper).Initialize(content_adder, controller);
 
             new BillingFileWorkflowInitializer(wrapper).Initialize(content_adder, controller);
         }
@@ -180,14 +180,8 @@ namespace SchedulingUI
             content_adder(new PersonSearchContent());
             content_adder(new PersonAddContent());
             content_adder(new HouseDataInputContent());
-
-
-            ButtonSelector timeselector = new ButtonSelector("TimeslotSelect", 3, "Dummy");
-
-            timeselector.BindButtonToOption("Dummy", "time", null);
-
-            content_adder(timeselector);
-
+            content_adder(new TimeSlotSelectorContent());
+            
 
 
             ButtonSelector patient = new ButtonSelector("SearchOrAddPatient", 2,
@@ -237,11 +231,12 @@ namespace SchedulingUI
 
 
             controller.AddWorkflow("Schedule Apt",
-                "TimeslotSelect;" +
+                "TimeSlotSelector;" +
                 "SearchOrAddPatient(:Search for or Add Patient?);" + // redirect to search or add
                 "HasCaregiver(:Add Caregiver to Appointment?)", // redirect to select caregiver
                 AcceptScheduleData,
-                SearchOrAddPatientRedirect);
+                SearchOrAddPatientRedirect,
+                ValidateTimeslot, null, null);
 
             // FIND OR ADD CAREGIVER
             controller.AddWorkflow("GetCaregiver",
@@ -255,28 +250,30 @@ namespace SchedulingUI
                 "PersonSearch;",
                 FinishMergePatient,
                 null,
-                SearchPatient);
+                SearchPerson);
 
             // ADD PATIENT
             controller.AddWorkflow("AddPatient",
                 "PersonAddEntry;" +
                 "HouseSelector;",
                 FinishMergePatient,
-                SearchOrAddOrIgnoreHouseholdRedirect);
+                SearchOrAddOrIgnoreHouseholdRedirect,
+                AddPerson, null);
 
             // FIND CAREGIVER
             controller.AddWorkflow("SearchCaregiver",
                 "PersonSearch;",
                 FinishMergeCaregiver,
                 null,
-                SearchPatient);
+                SearchPerson);
 
             // ADD CAREGIVER
             controller.AddWorkflow("AddCaregiver",
                 "PersonAddEntry;" +
                 "HouseSelector;",
                 FinishMergeCaregiver,
-                SearchOrAddOrIgnoreHouseholdRedirect);
+                SearchOrAddOrIgnoreHouseholdRedirect,
+                AddPerson);
 
             // FIND HOUSEHOLD
             controller.AddWorkflow("SearchHousehold",
@@ -296,6 +293,16 @@ namespace SchedulingUI
 
         }
 
+        private bool ValidateTimeslot(Dictionary<string, object> data, out string message)
+        {
+            bool valid = wrapper.TimeslotAvailable(GON<int>(data, "Year"), GON<int>(data, "Month"),
+                GON<int>(data, "Day"), GON<int>(data, "Slot"));
+
+            message = valid ? "" : "That time slot is taken";
+
+            return valid;
+        }
+
         #region Patient Getting
 
         private string SearchOrAddPatientRedirect(int stage, string stage_name, bool valid, Dictionary<string, object> values)
@@ -305,13 +312,13 @@ namespace SchedulingUI
                 if (valid && InterfaceWorkflowController.CheckEquals(values, "option", "search"))
                 {
                     values.Remove("option");
-                    return "SearchPatient";
+                    return "SearchPatient(&idout=PatientID)";
                 }
 
                 if (valid && InterfaceWorkflowController.CheckEquals(values, "option", "add"))
                 {
                     values.Remove("option");
-                    return "AddPatient";
+                    return "AddPatient(&idout=PatientID)";
                 }
             }
 
@@ -327,25 +334,27 @@ namespace SchedulingUI
             return null;
         }
 
-        private bool SearchPatient(Dictionary<string, object> data, out string message)
+        private bool SearchPerson(Dictionary<string, object> data, out string message)
         {
             object pk = wrapper.FindPerson(GON<string>(data, "First Name"), GON<char?>(data, "Middle Initial"),
                 GON<string>(data, "Last Name"), GON<string>(data, "Phone Number"), GON<string>(data, "HCN"));
 
-            data["PatientID"] = pk;
+            data[(string)data["idout"]] = pk;
+            data["PersonID"] = pk;
 
             message = pk == null ? "Could not find that person" : "";
 
             return pk != null;
         }
 
-        private bool AddPatient(Dictionary<string, object> data, out string message)
+        private bool AddPerson(Dictionary<string, object> data, out string message)
         {
             object pk = wrapper.AddPerson(GON<string>(data, "First Name"), GON<char>(data, "Middle Initial"),
                 GON<string>(data, "Last Name"), GON<string>(data, "Date Of Birth"), GON<char>(data, "Sex"),
                 GON<string>(data, "HCN"));
 
-            data["PatientID"] = pk;
+            data[(string)data["idout"]] = pk;
+            data["PersonID"] = pk;
 
             message = "";
 
@@ -374,12 +383,12 @@ namespace SchedulingUI
                 if (valid && InterfaceWorkflowController.CheckEquals(values, "option2", "search"))
                 {
                     values.Remove("option");
-                    return "SearchCaregiver";
+                    return "SearchCaregiver(&idout=CaregiverID)";
                 }
                 if (valid && InterfaceWorkflowController.CheckEquals(values, "option2", "add"))
                 {
                     values.Remove("option");
-                    return "AddCaregiver";
+                    return "AddCaregiver(&idout=CaregiverID)";
                 }
             }
 
@@ -400,19 +409,19 @@ namespace SchedulingUI
             if (valid && InterfaceWorkflowController.CheckEquals(values, "house", "find"))
             {
                 values["house"] = null;
-                return "SearchHousehold";
+                return "SearchHousehold(&PersonID=" + values["PersonID"].ToString() + ")";
             }
             if (valid && InterfaceWorkflowController.CheckEquals(values, "house", "add"))
             {
                 values["house"] = null;
-                return "AddHousehold";
+                return "AddHousehold(&PersonID=" + values["PersonID"].ToString() + ")";
             }
             if (valid && InterfaceWorkflowController.CheckEquals(values, "house", "ignore"))
             {
                 return null;
             }
 
-            throw new InvalidOperationException("Invalid option");
+            return null;
         }
 
         private bool ValidateFindHousehold(Dictionary<string, object> values, out string message)
@@ -438,7 +447,9 @@ namespace SchedulingUI
 
         private Dictionary<string, object> FinishMergeHousehold(Dictionary<string, object> data)
         {
-            return new Dictionary<string, object>() { ["HouseID"] = data["HouseID"] };
+            wrapper.SetHousehold((int)data["PersonID"], (int)data["HouseID"]);
+
+            return null;
         }
 
         #endregion
@@ -446,7 +457,9 @@ namespace SchedulingUI
 
         private Dictionary<string, object> AcceptScheduleData(Dictionary<string, object> data)
         {
-            DebugLog.LogOther("Schedule Apt: " + string.Join(", ", from kvp in data select kvp.Key + "=" + kvp.Value));
+            wrapper.ScheduleAppointment(GON<int>(data, "Year"), GON<int>(data, "Month"),
+                GON<int>(data, "Day"), GON<int>(data, "Slot"), GON<int>(data, "PatientID"),
+                GON<int>(data, "CaregiverID"));
 
             return null;
         }
@@ -468,34 +481,112 @@ namespace SchedulingUI
 
     }
 
-    static class BillingWorkflowInitializer
+    class BillingWorkflowInitializer
     {
 
-        public static void Initialize(Action<object> content_adder, InterfaceWorkflowController controller)
+        private DatabaseWrapper wrapper;
+
+        public BillingWorkflowInitializer(DatabaseWrapper wrapper)
         {
-            content_adder(new BillingCodeEntryController());
+            this.wrapper = wrapper;
+        }
+
+        public void Initialize(Action<object> content_adder, InterfaceWorkflowController controller)
+        {
+            content_adder(new BillingCodeEntryController(wrapper));
 
             ButtonSelector recall = new ButtonSelector("AppointmentRecall", 2, "None", "One Week", "Two Weeks", "Three Weeks");
+
+            recall.BindButtonToOption("None", "recall", 0);
+            recall.BindButtonToOption("One Week", "recall", 1);
+            recall.BindButtonToOption("Two Weeks", "recall", 2);
+            recall.BindButtonToOption("Three Weeks", "recall", 3);
 
             content_adder(recall);
 
             controller.AddWorkflow("Billing",
-                "BillingCodeEntry;" +
-                "AppointmentRecall;",
-                AcceptData);
+                "TimeSlotSelector;" +
+                "BillingCodeEntry(!aptid);" +
+                "AppointmentRecall(:Recall Appointment?)",
+                UpdateCodes, RedirectRecall,
+                ValidateTimeslotFull, null, null);
 
+            controller.AddWorkflow("RecallAppointment",
+                "TimeSlotSelector(year, month, day, slot)",
+                HandleRecall, null,
+                ValidateTimeslotEmpty);
 
         }
 
-        private static Dictionary<string, object> AcceptData(Dictionary<string, object> data)
+        private bool ValidateTimeslotEmpty(Dictionary<string, object> data, out string message)
         {
-            DebugLog.LogOther("Billing: " + string.Join(", ", from kvp in data select kvp.Key + "=" + kvp.Value));
+            bool valid = wrapper.TimeslotAvailable(GON<int>(data, "Year"), GON<int>(data, "Month"),
+                GON<int>(data, "Day"), GON<int>(data, "Slot"));
+
+            message = valid ? "" : "That time slot is taken";
+
+            return valid;
+        }
+
+        private bool ValidateTimeslotFull(Dictionary<string, object> data, out string message)
+        {
+            int? aptid = wrapper.GetAppointmentID(GON<int>(data, "Year"), GON<int>(data, "Month"),
+                GON<int>(data, "Day"), GON<int>(data, "Slot"));
+
+            message = aptid.HasValue ? "" : "That time slot has no appointment";
+
+            if (aptid.HasValue)
+            {
+                data["aptid"] = aptid.Value;
+            }
+
+            return aptid.HasValue;
+        }
+
+        private string RedirectRecall(int stage, string name, bool valid, Dictionary<string, object> data)
+        {
+            if(Equals(name, "AppointmentRecall") && !InterfaceWorkflowController.CheckEquals(data, "recall", 0))
+            {
+
+                return string.Format("RecallAppointment(year={0}, month={1}, day={2}, slot={3}, &aptid={4})",
+                    data["Year"], data["Month"], data["Day"], data["Slot"], data["aptid"]);
+            }
 
             return null;
         }
 
+        private Dictionary<string, object> UpdateCodes(Dictionary<string, object> data)
+        {
+            wrapper.SetBillingCodesForApt((int)data["aptid"], ((List<string>)data["codes"]).ToArray());
+
+            return null;
+        }
+
+        private Dictionary<string, object> HandleRecall(Dictionary<string, object> data)
+        {
+            wrapper.RescheduleAppointment(GON<int>(data, "Year"), GON<int>(data, "Month"),
+                GON<int>(data, "Day"), GON<int>(data, "Slot"), GON<int>(data, "aptid"));
+
+            return null;
+        }
+
+        /// <summary>
+        /// 'Get Or Null' - short hand method to get a key or null.
+        /// </summary>
+        private T GON<T>(Dictionary<string, object> data, string key)
+        {
+            if (data.ContainsKey(key))
+            {
+                return (T)data[key];
+            }
+            else
+            {
+                return default(T);
+            }
+        }
+
     }
-    
+
     public class BillingFileWorkflowInitializer
     {
         private DatabaseWrapper wrapper;
@@ -797,7 +888,7 @@ namespace SchedulingUI
     {
         public string Name => "Default";
 
-        private Menu menu = new Menu("Schedule Apt", "Billing", "Billing\nManagement", "Summary")
+        private Menu menu = new Menu("Schedule Apt", "Billing", "Billing\nManagement")
         {
             CountY = 6,
             PreferredWidth = 13,
@@ -952,19 +1043,18 @@ namespace SchedulingUI
 
         private ScrollableContainer CodeDisplay = new ScrollableContainer()
         {
-            ComponentHeight = 2,
-            Background = ColorCategory.HIGHLIGHT_BG_2
+            ComponentHeight = 2
         };
-
-        private LineDrawer lines = LineDrawer.FromGlobal();
         
         private InputController controller = new InputController();
         
         private Dictionary<string, Label> Codes = new Dictionary<string, Label>();
 
+        private DatabaseWrapper wrapper;
 
-        public BillingCodeEntryController()
+        public BillingCodeEntryController(DatabaseWrapper wrapper)
         {
+            this.wrapper = wrapper;
             InitializeComponents();
         }
 
@@ -984,7 +1074,7 @@ namespace SchedulingUI
             
             upper_controls.Add(Input, AddButton, RemoveButton);
 
-            Label padding = new Label("\n\nScroll with U and J")
+            Label padding = new Label("\n\nScroll with\nU and J")
             {
                 Center = true
             };
@@ -995,13 +1085,29 @@ namespace SchedulingUI
 
             controls.Add(upper_controls, padding, FinishButton);
 
-            First = controls;
-            Second = CodeDisplay;
-
-            Add(controls, CodeDisplay);
-
             controller.Add(Input, AddButton, RemoveButton, FinishButton);
             controller.Parent = this;
+
+            BinaryContainer offset = new BinaryContainer()
+            {
+                First = controls,
+                Second = CodeDisplay
+            };
+
+            offset.Add(controls, CodeDisplay);
+
+            Label padding2 = new Label()
+            {
+                PreferredHeight = 1
+            };
+
+            First = padding2;
+            Second = offset;
+
+            Add(padding2, offset);
+
+            Vertical = true;
+
 
             AddButton.Action += AddCode_Action;
 
@@ -1009,7 +1115,7 @@ namespace SchedulingUI
 
             FinishButton.Action += FinishButton_Action;
         }
-
+        
 
 
         private void FinishButton_Action(object sender, ComponentEventArgs e)
@@ -1023,7 +1129,10 @@ namespace SchedulingUI
         {
             if(Input.Text.Length == 4)
             {
-                Label label = new Label(Input.Text);
+                Label label = new Label(Input.Text)
+                {
+                    Center = false
+                };
 
                 Codes[Input.Text] = label;
 
@@ -1032,7 +1141,7 @@ namespace SchedulingUI
                 CodeDisplay.DoLayout();
 
                 Input.Clear();
-
+                
                 OnRequestRedraw(this, new RedrawEventArgs(Input));
                 OnRequestRedraw(this, new RedrawEventArgs(CodeDisplay));
             }
@@ -1073,7 +1182,7 @@ namespace SchedulingUI
 
 
 
-        private void InitializeCodes(string[] codes)
+        private void InitializeCodes(int appointmentid)
         {
             foreach (var kvp in Codes)
             {
@@ -1082,7 +1191,7 @@ namespace SchedulingUI
 
             Codes.Clear();
 
-            foreach (string code in codes)
+            foreach (string code in wrapper.GetBillingCodesForApt(appointmentid))
             {
                 Label label = new Label(code);
 
@@ -1098,7 +1207,7 @@ namespace SchedulingUI
         {
             if(arguments != null && arguments.Length > 0)
             {
-                InitializeCodes(arguments[0].Split(';').Select(s => s.Trim()).ToArray());
+                InitializeCodes(int.Parse(arguments[0]));
             }
 
             controller.Activate();
@@ -1113,11 +1222,7 @@ namespace SchedulingUI
         {
 
         }
-
-        public override void Draw(IConsole buffer)
-        {
-            base.Draw(buffer);
-        }
+        
     }
 
 }
