@@ -19,6 +19,7 @@ namespace SQEms
 
             database.LoadAll();
 
+            /*
             DatabaseTable patients = database["Patients"];
 
             DatabaseTable appointments = database["Appointments"];
@@ -32,12 +33,12 @@ namespace SQEms
             patients.Insert(1, "5534567890EE", "Parmenter", "Billy", 'A', "May 6, 1996", SexTypes.M, 1);
 
             //Create first appointment
-            appointments.Insert(1, 10, 3, 0, 1, 1);
+            appointments.Insert(1, CalendarManager.ConvertYearMonthToMonth(2017, 11), 3, 0, 1, 1);
             //Create first billing row
             billing.Insert(1, 1, "A665", BillingCodeResponse.NONE);
 
             //Second appointment
-            appointments.Insert(2, 10, 5, 0, 1, 1);
+            appointments.Insert(2, CalendarManager.ConvertYearMonthToMonth(2017, 11), 5, 0, 1, 1);
             //second row
             billing.Insert(2, 2, "A005", BillingCodeResponse.NONE);
 
@@ -45,13 +46,12 @@ namespace SQEms
             patients.Insert(2, "1234567890KV", "Blanski", "Bob", 'A', "May 6, 1996", SexTypes.F, 1);
 
             //third appointment
-            appointments.Insert(3, 10, 5, 0, 1, 1);
+            appointments.Insert(3, CalendarManager.ConvertYearMonthToMonth(2017, 11), 4, 0, 2, 1);
 
             //third and fourth rows (both assumed in same appointment)
             billing.Insert(3, 3, "A665", BillingCodeResponse.NONE);
             billing.Insert(4, 3, "A005", BillingCodeResponse.NONE);
-
-
+            */
 
             InterfaceStart.InitConsole();
 
@@ -61,7 +61,7 @@ namespace SQEms
 
             InterfaceStart.ResetConsole();
 
-            database.SaveAll();
+            //database.SaveAll();
         }
     }
 }
