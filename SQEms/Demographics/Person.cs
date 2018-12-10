@@ -19,10 +19,14 @@ namespace Demographics
     /// </summary>
     public class PersonDB
     {
+        //Creating class level variables
         private DatabaseTable People;
         private DatabaseTable Households;
         public Logging logger = new Logging();
 
+        /// <summary>
+        /// Constructor that initalizes class level variables
+        /// </summary>
         public PersonDB(DatabaseManager database)
         {
             People = database["Patients"];
@@ -40,45 +44,56 @@ namespace Demographics
         /// <returns>All people who match</returns>
         public IEnumerable<int?> Find(string firstname, char? initial, string lastname, string phonenumber, string hcn)
         {
+            //Create lists to store values
             List<string> columns = new List<string>();
             List<object> values = new List<object>();
 
+            //If the first name isn't null
             if (firstname != null)
             {
                 columns.Add("firstName");
                 values.Add(firstname);
             }
 
+            //If the middle initial is not null
             if (initial != null)
             {
                 columns.Add("mInitial");
                 values.Add(initial);
             }
 
+            //If the last name is not null
             if (lastname != null)
             {
                 columns.Add("lastName");
                 values.Add(lastname);
             }
             
+            //If the hcn is not null
             if (hcn != null)
             {
                 columns.Add("HCN");
                 values.Add(hcn);
             }
 
+            //Save information into a variable
             var matches = People.WhereEquals(string.Join(";", columns.ToArray()), values.ToArray());
 
+            //Create a new hashset using pk
             HashSet<int?> people = new HashSet<int?>(matches.Select(pk => new int?((int)pk)));
             
+            //If the phone number is not null
             if (phonenumber != null)
             {
+                //Create a new hashset
                 HashSet<int?> valid = new HashSet<int?>();
 
+                //Loop through each person in list
                 foreach (int person in people)
                 {
                     string phone = (string)Households[People[person, "HouseID"], "numPhone"];
 
+                    //If the phone numbers match
                     if(Equals(phone, phonenumber))
                     {
                         valid.Add(person);
@@ -98,9 +113,11 @@ namespace Demographics
         /// <returns>The firstname + The initial + The lastname</returns>
         public string GetFullName(int patient_id)
         {
+            //Create variables
             string fullName = string.Empty;
             object pk = People.WhereEquals<int>("PatientID", patient_id).First();
             
+            //If the pk is not null
             if(pk != null)
             {
                 object lastName = People[pk, "lastName"];
@@ -145,10 +162,5 @@ namespace Demographics
 
             return maxVal + 1;
         }
-
-
-        
-    }
-
-        
+    }   
 }
