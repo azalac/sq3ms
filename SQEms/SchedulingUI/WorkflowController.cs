@@ -56,6 +56,7 @@ namespace SchedulingUI
         public WorkflowState state = WorkflowState.RUNNING;
         public Dictionary<string, string> arguments = new Dictionary<string, string>();
         public Dictionary<string, object> values = new Dictionary<string, object>();
+        public Dictionary<string, object> completed = new Dictionary<string, object>();
     }
 
 
@@ -251,7 +252,7 @@ namespace SchedulingUI
         {
             if (current != null && !force)
             {
-                throw new InvalidOperationException("Cannot invoke workflow: " + current + " is already active");
+                throw new InvalidOperationException("Cannot invoke workflow: " + current.name + " is already active");
             }
 
             current = new WorkflowInstance();
@@ -380,6 +381,7 @@ namespace SchedulingUI
             string[] args = ResolveArguments(stage);
             content_controller.Activate(workflows[workflow].stages[stage], args);
 
+            DebugLog.LogController("Displaying stage " + workflows[workflow].stages[stage]);
 
             if (set)
             {
@@ -404,7 +406,7 @@ namespace SchedulingUI
         /// </summary>
         private void Reset()
         {
-            current = new WorkflowInstance();
+            current = null;
         }
 
 
@@ -416,7 +418,7 @@ namespace SchedulingUI
         {
             held_flows.Push(current);
 
-            DebugLog.LogController("Holding workflow '" + current.name + "'");
+            DebugLog.LogController("Holding workflow '" + current.name + "' - stack size: " + held_flows.Count);
         }
 
         /// <summary>
@@ -424,8 +426,15 @@ namespace SchedulingUI
         /// </summary>
         private void RestoreWorkflow()
         {
+            WorkflowInstance old = current;
+
             current = held_flows.Pop();
             
+            foreach(var kvp in old.completed)
+            {
+                current.values[kvp.Key] = kvp.Value;
+            }
+
             if(current.stage == workflows[current.name].stages.Length)
             {
                 HandleWorkflowExit();
@@ -464,29 +473,34 @@ namespace SchedulingUI
             string name = current.stage < workflows[current.name].stages.Length ?
                 workflows[current.name].stages[current.stage] : null;
 
-            DebugLog.LogController(string.Format("Stage {0}/{1} is exiting", name, current.stage));
-
-            Dictionary<string, object> merge = workflows[current.name].acceptor(current.values);
-
-            if (merge != null)
-            {
-                // merge the workflows
-                foreach (KeyValuePair<string, object> entry in merge)
-                    current.values[entry.Key] = entry.Value;
-            }
-
+            current.completed = workflows[current.name].acceptor(current.values);
+            
+            DebugLog.LogController(string.Format("Stage {0}/{1}:{3} is exiting ({2})", name, current.stage, DictToString(current.completed), current.name));
+            
             // if there's a held workflow, restore it
             if (held_flows.Count > 0)
             {
+                DebugLog.LogController("Restoring");
                 RestoreWorkflow();
             }
             else
             {
+                DebugLog.LogController("Resetting");
                 // otherwise, reset to default screen
                 Reset();
 
                 content_controller.Deactivate();
             }
+        }
+
+        private string DictToString<K, V>(Dictionary<K, V> dict)
+        {
+            if(dict == null)
+            {
+                return "{null}";
+            }
+
+            return "{" + string.Join(", ", dict.Select(kvp => kvp.Key + "=" + kvp.Value)) + "}";
         }
 
         /// <summary>
@@ -502,24 +516,21 @@ namespace SchedulingUI
             string name = current.stage < workflows[current.name].stages.Length ?
                 workflows[current.name].stages[current.stage] : null;
 
+            bool goto_next_stage = false;
+
             if (valid.Value || !valid.HasValue)
             {
-                DebugLog.LogController(string.Format("Stage {0}/{1} has valid output", name, current.stage));
+                DebugLog.LogController(string.Format("Stage {0}/{1} has valid output ({2})", name, current.stage, DictToString(args.Value)));
 
                 foreach (KeyValuePair<string, object> entry in args.Value)
                     current.values[entry.Key] = entry.Value;
 
-                current.stage++;
+                goto_next_stage = true;
 
-
-                if (current.stage < workflows[current.name].stages.Length)
-                {
-                    StartStage(attachevent: true);
-                }
             }
             else
             {
-                DebugLog.LogController(string.Format("Stage {0}/{1} has invalid output", name, current.stage));
+                DebugLog.LogController(string.Format("Stage {0}/{1} has invalid output ({2})", name, current.stage, DictToString(args.Value)));
 
                 HoldWorkflow();
 
@@ -542,77 +553,23 @@ namespace SchedulingUI
                 return;
             }
 
+            if(goto_next_stage)
+            {
+                current.stage++;
+
+
+                if (current.stage < workflows[current.name].stages.Length)
+                {
+                    StartStage(attachevent: true);
+                }
+            }
+
             if(current.stage == workflows[current.name].stages.Length)
             {
                 HandleWorkflowExit();
             }
         }
-
-        /*
-         * 
-            Workflow current_workflow = workflows[current.name];
-            WorkflowValidator validator = current_workflow.validators[current.stage];
-            string error_msg = "";
-            
-            bool valid = validator == null || validator(args.Value, out error_msg);
-            
-
-
-            if (valid)
-            {
-                DebugLog.LogController("Stage '" + current_workflow.stages[current.stage] + "' has valid output (" + String.Join(",", args.Value) + ")");
-                
-                foreach (KeyValuePair<string, object> entry in args.Value)
-                    current.values[entry.Key] = entry.Value;
-
-                current.stage++;
-
-                if (current.stage < current_workflow.stages.Length)
-                {
-                    StartStage(attachevent: true);
-                }
-            }
-            else
-            {
-                DebugLog.LogController("Stage '" + current_workflow.stages[current.stage] + "' has invalid output (" + String.Join(",", args.Value) + ")");
-
-                HoldWorkflow();
-
-                InvokeWorkflow("__CancelRequest(error = " + error_msg + ")", true);
-            }
-
-
-            // try to do a redirection, with a valid state
-            if (current_workflow.redirector != null)
-            {
-                string name = current.stage == current_workflow.stages.Length ? null : current_workflow.stages[current.stage];
-
-                string redirect = current_workflow.redirector(current.stage, name, valid, args.Value);
-
-                if (redirect != null)
-                {
-                    DebugLog.LogController("Stage '" + name + "' is redirecting to '" + redirect + "'");
-                    
-                    HoldWorkflow();
-
-                    InvokeWorkflow(redirect, true);
-
-                    return;
-                }
-                else
-                {
-                    DebugLog.LogController("Stage '" + name + "' isn't redirecting");
-                }
-            }
-
-
-            if (current.stage == current_workflow.stages.Length)
-            {
-                HandleWorkflowExit();
-            }
-         * 
-         */
-
+        
         #endregion
 
         /// <summary>
@@ -632,6 +589,11 @@ namespace SchedulingUI
             }
 
             object val = dict[option];
+
+            if(val == null || value == null)
+            {
+                return val == null && value == null;
+            }
 
             if (typeof(T).IsAssignableFrom(val.GetType()))
             {

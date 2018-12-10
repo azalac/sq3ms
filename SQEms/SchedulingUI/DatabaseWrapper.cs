@@ -1,4 +1,6 @@
 ﻿using Billing;
+using Definitions;
+using Demographics;
 using Support;
 using System;
 using System.Collections.Generic;
@@ -18,14 +20,16 @@ namespace SchedulingUI
         private AppointmentScheduler scheduler;
         private Billing.Billing billing;
         private BillingFileInteraction billingIO;
-        private Demographics.PersonDB people;
+        private PersonDB people;
+        private HouseholdManager houses;
 
         public DatabaseWrapper(DatabaseManager database)
         {
             scheduler = new AppointmentScheduler(database);
             billing = new Billing.Billing(database);
             billingIO = new BillingFileInteraction(database);
-            people = new Demographics.PersonDB(database);
+            people = new PersonDB(database);
+            houses = new HouseholdManager(database);
         }
 
         public int? GetAppointmentCount(int month, int day)
@@ -52,9 +56,10 @@ namespace SchedulingUI
             return people.Find(firstname, initial, lastname, phonenumber, hcn);
         }
 
-        public int AddPerson(string firstname, char initial, string lastname, string phonenumber, string hcn, int houseid)
+        public object AddPerson(string firstname, char initial, string lastname, string dob, char sex, string hcn)
         {
-            return 0;
+            return people.CreatePatient(hcn, lastname, firstname, initial, dob,
+                (SexTypes)Enum.Parse(typeof(SexTypes), initial.ToString()), 0);
         }
         
         /// <summary>
@@ -110,6 +115,20 @@ namespace SchedulingUI
         public bool DoBillingReconcile(int month, string responsepath)
         {
             return billingIO.ParseResponse(month, responsepath);
+        }
+
+        public object FindHousehold(string address1, string address2, string city,
+            string province, string phonenum)
+        {
+            return houses.FindHousehold(address1, address2, city,
+                province, phonenum);
+        }
+
+        public object AddHousehold(string address1, string address2, string city,
+            string province, string phonenum, string HOH_HCN)
+        {
+            return houses.AddHousehold(address1, address2, city,
+                province, phonenum, HOH_HCN);
         }
 
     }
