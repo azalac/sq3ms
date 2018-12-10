@@ -642,7 +642,7 @@ namespace SchedulingUI
                 c.Left = Left;
                 c.Width = Width;
 
-                c.Top = ComponentHeight * i - scroll;
+                c.Top = ComponentHeight * i - scroll + Top;
                 c.Height = ComponentHeight;
             }
         }
