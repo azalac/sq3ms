@@ -121,7 +121,7 @@ namespace Demographics
         /// <param name="sex">The patient's sex</param>
         /// <param name="houseID">The patient's house ID</param>
         /// <returns>The firstname + The initial + The lastname</returns>
-        public void CreatePatient(string HCN, string lastName, string firstName, char mInitial, string dateBirth, SexTypes sex, int houseID)
+        public object CreatePatient(string HCN, string lastName, string firstName, char mInitial, string dateBirth, SexTypes sex, int houseID)
         {
             int maxVal = People.GetMaximum("PatientID");
             
@@ -135,6 +135,7 @@ namespace Demographics
                 logger.Log(Definitions.LoggingInfo.ErrorLevel.WARN, "Patient was Not Created");
             }
 
+            return maxVal + 1;
         }
 
 
