@@ -38,7 +38,7 @@ namespace Demographics
         /// <param name="phonenumber">The phonenumber.</param>
         /// <param name="hcn">The health card number/</param>
         /// <returns>All people who match</returns>
-        public IEnumerable<int> Find(string firstname, char? initial, string lastname, string phonenumber, string hcn)
+        public IEnumerable<int?> Find(string firstname, char? initial, string lastname, string phonenumber, string hcn)
         {
             List<string> columns = new List<string>();
             List<object> values = new List<object>();
@@ -67,11 +67,13 @@ namespace Demographics
                 values.Add(hcn);
             }
 
-            HashSet<int> people = new HashSet<int>(People.WhereEquals(string.Join(";", columns.ToArray()), values.ToArray()).Select(pk => (int)pk));
+            var matches = People.WhereEquals(string.Join(";", columns.ToArray()), values.ToArray());
+
+            HashSet<int?> people = new HashSet<int?>(matches.Select(pk => new int?((int)pk)));
             
             if (phonenumber != null)
             {
-                HashSet<int> valid = new HashSet<int>();
+                HashSet<int?> valid = new HashSet<int?>();
 
                 foreach (int person in people)
                 {
@@ -86,7 +88,7 @@ namespace Demographics
                 return valid;
             }
 
-            return people;
+            return people.AsEnumerable();
         }
 
         /// <summary>
