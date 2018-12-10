@@ -1,4 +1,10 @@
-﻿using System;
+﻿/*
+* FILE          : CalendarManager.cs
+* PROJECT       : INFO-2180 Software Quality 1, Term Project
+* PROGRAMMER    : Billy Parmenter
+* FIRST VERSION : November 12, 2018
+*/
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;

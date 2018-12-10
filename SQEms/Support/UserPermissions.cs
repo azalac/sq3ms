@@ -1,4 +1,10 @@
-﻿using System;
+﻿/*
+* FILE          : UserPermissions.cs
+* PROJECT       : INFO-2180 Software Quality 1, Term Project
+* PROGRAMMER    : Billy Parmenter
+* FIRST VERSION : November 20, 2018
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;

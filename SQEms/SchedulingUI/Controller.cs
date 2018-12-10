@@ -1,3 +1,9 @@
+/*
+* FILE          : Controller.cs
+* PROJECT       : INFO-2180 Software Quality 1, Term Project
+* PROGRAMMER    : Austin Zalac
+* FIRST VERSION : November 12, 2018
+*/
 using Definitions;
 using Support;
 using System;

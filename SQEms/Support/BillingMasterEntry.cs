@@ -1,7 +1,7 @@
 ﻿/*
 * FILE          : BillingMasterEntry.cs
 * PROJECT       : INFO-2180 Software Quality 1, Term Project
-* PROGRAMMER    : Blake Ribble
+* PROGRAMMER    : Billy Parmenter
 * FIRST VERSION : November 1, 2018
 */
 
