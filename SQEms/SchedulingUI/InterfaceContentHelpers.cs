@@ -159,14 +159,30 @@ namespace SchedulingUI
 
         }
 
+        private List<Tuple<string, object>> debug_bindings = new List<Tuple<string, object>>();
+
         public void BindButtonToOption(string buttonaction, string option_name, object option_value)
         {
-            this[buttonaction].Action += (sender, args) => OnFinish(this, new Dictionary<string, object>() { [option_name] = option_value });
-        }
+            // an attempt to fix variable capturing
+            ActionInvoker invoker = new ActionInvoker()
+            {
+                sender = this,
+                option = option_name,
+                value = option_value
+            };
 
-        protected void OnFinish(object sender, Dictionary<string, object> args)
+            invoker.Action += OnFinish;
+
+            debug_bindings.Add(new Tuple<string, object>(option_name, option_value));
+
+            this[buttonaction].Action += invoker.HandleFinish;
+        }
+        
+        protected void OnFinish(object sender, ReferenceArgs<Dictionary<string, object>> args)
         {
-            Finish?.Invoke(sender, new ReferenceArgs<Dictionary<string, object>>(args));
+            DebugLog.LogController(args.Value);
+            
+            Finish?.Invoke(sender, args);
         }
 
         public void Activate(params string[] arguments)
@@ -187,6 +203,24 @@ namespace SchedulingUI
         public void Initialize(RootContainer root)
         {
 
+        }
+
+        private class ActionInvoker
+        {
+            public object sender;
+            public string option;
+            public object value;
+            public event EventHandler<ReferenceArgs<Dictionary<string, object>>> Action;
+            
+            public void HandleFinish(object sender, ComponentEventArgs args)
+            {
+                Dictionary<string, object> values = new Dictionary<string, object>()
+                {
+                    [option] = value
+                };
+
+                Action?.Invoke(this.sender, new ReferenceArgs<Dictionary<string, object>>(values));
+            }
         }
     }
 
@@ -298,7 +332,7 @@ namespace SchedulingUI
             }
             else
             {
-                submit.Text = "Invalid Inputs";
+                submit.Text = string.Format("Invalid Inputs ({0}/{1})", valid_inputs.Count(b => b), min);
                 OnRequestRedraw(this, new RedrawEventArgs(submit));
             }
         }
@@ -494,12 +528,12 @@ namespace SchedulingUI
 
         private void Cancel_Option(object sender, ComponentEventArgs args)
         {
-            OnFinish(this, new Dictionary<string, object> { ["continue"] = false });
+            OnFinish(this, new ReferenceArgs<Dictionary<string, object>>(new Dictionary<string, object> { ["continue"] = false }));
         }
 
         private void Continue_Option(object sender, ComponentEventArgs args)
         {
-            OnFinish(this, new Dictionary<string, object> { ["continue"] = true });
+            OnFinish(this, new ReferenceArgs<Dictionary<string, object>>(new Dictionary<string, object> { ["continue"] = true }));
         }
 
     }
@@ -542,7 +576,7 @@ namespace SchedulingUI
         public PersonSearchContent():
             base("First Name", "Middle Initial", "Last Name", "Phone Number", "HCN")
         {
-            Name = "PersonDataEntry";
+            Name = "PersonSearch";
 
             Parsers["First Name"] = ValidateNonEmpty;
             Parsers["Middle Initial"] = ValidateOneCharacter;
@@ -591,7 +625,7 @@ namespace SchedulingUI
         public PersonAddContent() :
             base("First Name", "Middle Initial", "Last Name", "Sex", "HCN")
         {
-            Name = "PersonDataEntry";
+            Name = "PersonAddEntry";
 
             Parsers["First Name"] = ValidateNonEmpty;
             Parsers["Middle Initial"] = ValidateOneCharacter;
@@ -640,14 +674,14 @@ namespace SchedulingUI
         public HouseDataInputContent() :
             base("Address Line 1", "Address Line 2", "City", "Province", "Phone Number", "Head Of House HCN")
         {
-            Name = "PersonDataEntry";
+            Name = "HouseDataEntry";
 
             Parsers["Address Line 1"] = ValidateNonEmpty;
             Parsers["Address Line 2"] = ValidateAL2;
             Parsers["City"] = ValidateNonEmpty;
             Parsers["Province"] = ValidateNonEmpty;
             Parsers["Phone Number"] = ValidatePhoneNumber;
-            Parsers["HCN"] = ValidateHCN;
+            Parsers["Head Of House HCN"] = ValidateHCN;
 
             MinRequired = 1;
         }
