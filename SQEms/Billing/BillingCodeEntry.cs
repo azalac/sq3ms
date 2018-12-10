@@ -17,7 +17,7 @@ using System.Collections.Generic;
 namespace Billing
 {
     /// <summary>
-    /// Struct that contains billable procedure information
+    /// Struct that contains billable procedure information and methods
     /// </summary>
     /// 
     struct BillableProcedure
@@ -71,6 +71,11 @@ namespace Billing
             return hashCode;
         }
 
+        /// <summary>
+        /// Converts variable to specified string format
+        /// </summary>
+        /// <returns>Formatted string </returns>
+        /// 
         public override string ToString()
         {
             return string.Format("{0}, {1}, {2}; {3}:{4}; {5}:{6}", year, month, day, HCN, sex, code, response);
@@ -100,7 +105,6 @@ namespace Billing
         //Definitions of class level variables
         private DatabaseTable procedures;
         private DatabaseTable billingMaster;
-
         private DatabaseTable people;
         private DatabaseTable appointments;
 
@@ -273,22 +277,27 @@ namespace Billing
             //Create a dictionary of pks
             Dictionary<BillableProcedure, List<int>> pks = BillingDBAsDict(month);
 
+            //Set information to variable
             int year = CalendarManager.ConvertMonthToYear(ref month);
 
+            //Loop through each billable procedure
             foreach(BillableProcedure bp in response.Keys)
             {
+                //If the month or the year doesn't match
                 if(bp.month != month || bp.year != year)
                 {
                     logger?.Log(LoggingInfo.ErrorLevel.ERROR, "Invalid date for response");
                     continue;
                 }
                 
+                //If the response doesn't match
                 if(!response.ContainsKey(bp))
                 {
                     logger?.Log(LoggingInfo.ErrorLevel.WARN, "Could not match " + bp + " to known procedures");
                     continue;
                 }
 
+                //If the count of pks doesn't match the count of responses
                 if(pks[bp].Count != response[bp].Count)
                 {
                     logger?.Log(LoggingInfo.ErrorLevel.ERROR, "Billable procedure response and database data mismatched for procedure " + bp);
@@ -336,6 +345,7 @@ namespace Billing
                     //Create a list to store info
                     List<string> codes = _data.ContainsKey(bp) ? _data[bp] : new List<string>();
 
+                    //Add the info to the list
                     codes.Add(bp.response);
 
                     //Save the list to dictionary
@@ -437,6 +447,7 @@ namespace Billing
             //Creates a new dictionary
             Dictionary<BillableProcedure, List<int>> dict = new Dictionary<BillableProcedure, List<int>>();
 
+            //Loop through the keys
             foreach (object pk in procedures.Keys)
             {
                 //Create a new billable procedure
