@@ -1,5 +1,5 @@
 /*
-* FILE          : Person.cs
+* FILE          : AppointmentScheduler.cs
 * PROJECT       : INFO-2180 Software Quality 1, Term Project
 * PROGRAMMER    : Mike Ramoutsakis
 * FIRST VERSION : November 20, 2018
@@ -29,9 +29,6 @@ namespace Support
         }
 	}
 
-
-
-
     /// <summary>
     /// NAME: AppointmentScheduler
     /// PURPOSE: This class will handle setting appointments for a patient,
@@ -54,9 +51,6 @@ namespace Support
             Patients = database["Patients"];
             Appointments = database["Appointments"];
         }
-
-
-
 
 
         /// <summary>
@@ -85,9 +79,6 @@ namespace Support
                 throw new System.ArgumentException("Time slot already filled");
             }
         }
-
-
-
 
 
         /// <summary>
@@ -136,9 +127,6 @@ namespace Support
         }
 
 
-
-
-
         /// <summary>
         /// Gets the patients of a given appointment.
         /// </summary>
@@ -181,8 +169,6 @@ namespace Support
         }
 
 
-
-
         /// <summary>
         /// Gets all appointments on a given day.
         /// </summary>
@@ -206,9 +192,6 @@ namespace Support
         {
             return Appointments.WhereEquals("Month;Day", month, day).Count();
         }
-
-
-
 
 
         /// <summary>
