@@ -7,7 +7,6 @@
 using Billing;
 using Definitions;
 using Demographics;
-using Billing;
 using Support;
 using System;
 using System.Collections.Generic;
@@ -48,7 +47,7 @@ namespace SchedulingUI
         {
             return scheduler.GetPatientIDs_AllDay(new AptTimeSlot(month, day, 0));
         }
-
+        
         /// <summary>
         /// Finds people based on the given arguments.
         /// </summary>
@@ -58,9 +57,9 @@ namespace SchedulingUI
         /// <param name="phonenumber">The phonenumber.</param>
         /// <param name="hcn">The health card number/</param>
         /// <returns>All people who match</returns>
-        public IEnumerable<int> FindPerson(string firstname, char? initial, string lastname, string phonenumber, string hcn)
+        public object FindPerson(string firstname, char? initial, string lastname, string phonenumber, string hcn)
         {
-            return people.Find(firstname, initial, lastname, phonenumber, hcn);
+            return people.Find(firstname, initial, lastname, phonenumber, hcn).FirstOrDefault();
         }
 
         public object AddPerson(string firstname, char initial, string lastname, string dob, char sex, string hcn)
@@ -141,6 +140,36 @@ namespace SchedulingUI
         public string CompileSummary(int month)
         {
             return billingIO.CompileStatistics(month);
+        }
+
+        public bool TimeslotAvailable(int year, int month, int day, int slot)
+        {
+            return scheduler.TimeslotAvailable(CalendarManager.ConvertYearMonthToMonth(year, month), day, slot);
+        }
+
+        public int? GetAppointmentID(int year, int month, int day, int slot)
+        {
+            return scheduler.GetAppointmentID(CalendarManager.ConvertYearMonthToMonth(year, month), day, slot);
+        }
+
+        public void ScheduleAppointment(int year, int month, int day, int slot, int patientid, int caregiverid)
+        {
+            scheduler.Schedule(new AptTimeSlot(CalendarManager.ConvertYearMonthToMonth(year, month), day, slot), patientid, caregiverid);
+        }
+
+        public void RescheduleAppointment(int aptid, int year, int month, int day, int slot)
+        {
+            scheduler.Reschedule(aptid, new AptTimeSlot(CalendarManager.ConvertYearMonthToMonth(year, month), day, 0));
+        }
+        
+        public AptTimeSlot FindNextEmpty(int year, int month, int day, int nweeks_after)
+        {
+            return scheduler.FindNextSlot(new AptTimeSlot(CalendarManager.ConvertYearMonthToMonth(year, month), day, 0), nweeks_after);
+        }
+
+        public void SetHousehold(int person, int house)
+        {
+            houses.SetHousehold(person, house);
         }
     }
 }
