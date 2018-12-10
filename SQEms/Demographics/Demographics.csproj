@@ -33,6 +33,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AppointmentScheduler.cs" />
+    <Compile Include="HouseholdManager.cs" />
     <Compile Include="Person.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
