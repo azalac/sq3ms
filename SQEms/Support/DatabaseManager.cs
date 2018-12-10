@@ -558,7 +558,9 @@ namespace Support
         private static Dictionary<Type, Action<BinaryWriter, object>> Writers =
             new Dictionary<Type, Action<BinaryWriter, object>>();
 
-
+        /// <summary>
+		/// Contains the prototype for database tables
+		/// </summary>
         static DatabaseTablePrototype()
 		{
 			Readers [typeof(string)] = r => r.ReadString ();
@@ -571,7 +573,11 @@ namespace Support
 			Writers [typeof(char)] = (w, o) => w.Write ((char)o);
 		}
 
-		public DatabaseTablePrototype(int size)
+        /// <summary>
+        /// Contains the prototype for database tables when size is declared
+        /// <param name="size">The size of the table.</param>
+        /// </summary>
+        public DatabaseTablePrototype(int size)
 		{
 			ColumnReaders = new Func<BinaryReader, object>[size];
 			ColumnWriters = new Action<BinaryWriter, object>[size];
