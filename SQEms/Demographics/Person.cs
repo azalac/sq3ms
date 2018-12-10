@@ -138,7 +138,7 @@ namespace Demographics
         }
 
 
-        //*******************ARE WE DOING UPDATE PATIENT*********************
+        
     }
 
         
