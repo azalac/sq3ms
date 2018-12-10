@@ -263,7 +263,7 @@ namespace SchedulingUI
 
             current = new WorkflowInstance();
             
-            current.arguments = ParseWorkflowName(name, out current.name);
+            current.arguments = ParseWorkflowName(name, out current.name, current.values);
             
             StartStage(attachevent: true);
             
@@ -280,14 +280,14 @@ namespace SchedulingUI
         /// <param name="input">The input string.</param>
         /// <param name="name">The workflow name.</param>
         /// <returns>The workflow arguments.</returns>
-        private Dictionary<string, string> ParseWorkflowName(string input, out string name)
+        private Dictionary<string, string> ParseWorkflowName(string input, out string name, Dictionary<string, object> values)
         {
             input = input.TrimEnd();
             
             // if the input matches '...(...)'
             if(input.EndsWith(")") && input.Contains("("))
             {
-                string[] sections = input.Substring(0, input.Length - 2).Split('(');
+                string[] sections = input.Substring(0, input.Length - 1).Split('(');
 
                 name = sections[0].Trim();
 
@@ -297,7 +297,16 @@ namespace SchedulingUI
                 {
                     string[] halves = arg.Split('=');
 
-                    args[halves[0].Trim()] = halves[1].Trim();
+                    halves[0] = halves[0].Trim();
+
+                    if (halves[0].StartsWith("&"))
+                    {
+                        values[halves[0].Substring(1)] = halves[1].Trim();
+                    }
+                    else
+                    {
+                        args[halves[0]] = halves[1].Trim();
+                    }
                 }
 
                 return args;
@@ -435,10 +444,13 @@ namespace SchedulingUI
             WorkflowInstance old = current;
 
             current = held_flows.Pop();
-            
-            foreach(var kvp in old.completed)
+
+            if (old.completed != null)
             {
-                current.values[kvp.Key] = kvp.Value;
+                foreach (var kvp in old.completed)
+                {
+                    current.values[kvp.Key] = kvp.Value;
+                }
             }
 
             if(current.stage == workflows[current.name].stages.Length)
@@ -522,7 +534,7 @@ namespace SchedulingUI
             string name = current.stage < workflows[current.name].stages.Length ?
                 workflows[current.name].stages[current.stage] : null;
 
-            bool goto_next_stage = false;
+            string redirect = null;
 
             if (valid.Value || !valid.HasValue)
             {
@@ -531,8 +543,16 @@ namespace SchedulingUI
                 foreach (KeyValuePair<string, object> entry in args.Value)
                     current.values[entry.Key] = entry.Value;
 
-                goto_next_stage = true;
+                redirect = workflows[current.name].redirector?.Invoke(current.stage,
+                    name, valid ?? true, current.values);
 
+                current.stage++;
+
+
+                if (current.stage < workflows[current.name].stages.Length)
+                {
+                    StartStage(attachevent: true);
+                }
             }
             else
             {
@@ -545,9 +565,6 @@ namespace SchedulingUI
                 return;
             }
 
-            string redirect = workflows[current.name].redirector?.Invoke(current.stage,
-                name, valid ?? true, current.values);
-
             if(redirect != null)
             {
                 DebugLog.LogController(string.Format("Stage {0}/{1} is redirecting to {2}", name, current.stage, redirect));
@@ -558,19 +575,12 @@ namespace SchedulingUI
 
                 return;
             }
-
-            if(goto_next_stage)
+            else
             {
-                current.stage++;
-
-
-                if (current.stage < workflows[current.name].stages.Length)
-                {
-                    StartStage(attachevent: true);
-                }
+                DebugLog.LogController(string.Format("Stage {0}/{1} is not redirecting", name, current.stage));
             }
 
-            if(current.stage == workflows[current.name].stages.Length)
+            if (current.stage == workflows[current.name].stages.Length)
             {
                 HandleWorkflowExit();
             }
