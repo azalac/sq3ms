@@ -448,6 +448,24 @@ namespace SchedulingUI
             }
         }
 
+        /// <summary>
+        /// Gets the value for the given label.
+        /// </summary>
+        /// <param name="label">The label's text.</param>
+        /// <returns>The TextInput's text</returns>
+        public string this[int index]
+        {
+            get
+            {
+                return inputs[index].Text;
+            }
+
+            set
+            {
+                inputs[index].Text = value;
+            }
+        }
+
         public void SetLabelText(int i, string Text)
         {
             if (i < 0 || i >= labels.Length)
@@ -548,12 +566,12 @@ namespace SchedulingUI
     public class TimeSlotSelectorContent : FormInputSelectorContent
     {
         public TimeSlotSelectorContent() :
-            base("Month", "Week", "Day", "Slot")
+            base("Year", "Month", "Day", "Slot")
         {
             Name = "TimeSlotSelector";
 
+            Parsers["Year"] = ParseInt;
             Parsers["Month"] = ParseInt;
-            Parsers["Week"] = ParseInt;
             Parsers["Day"] = ParseInt;
             Parsers["Slot"] = ParseInt;
         }
@@ -574,7 +592,13 @@ namespace SchedulingUI
         
         public override void HandleArguments(string[] arguments)
         {
-            
+            if(arguments != null)
+            {
+                for(int i = 0; i < arguments.Length && i < Parsers.Count; i++)
+                {
+                    this[i] = arguments[i] ?? "";
+                }
+            }
         }
     }
 
