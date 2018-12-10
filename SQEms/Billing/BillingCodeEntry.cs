@@ -226,24 +226,24 @@ namespace Billing
         
         private void MatchProcedures(int month, Dictionary<BillableProcedure, List<string>> response, Logging logger = null)
         {
-            Dictionary<BillableProcedure, List<int>> pks = BillingDBAsDict(month);
+            Dictionary<int, List<int>> pks = BillingDBAsDict(month);
 
             foreach(BillableProcedure bp in response.Keys)
             {
-                if(pks[bp].Count != response[bp].Count)
+                if(pks[bp.GetHashCode()].Count != response[bp].Count)
                 {
                     logger?.Log(LoggingInfo.ErrorLevel.ERROR, "Billable procedure response and database data mistmatch for procedure " + bp);
                     continue;
                 }
 
-                var zipped = response[bp].Zip(pks[bp], (s, i) => new Tuple<int, string>(i, s));
+                var zipped = response[bp].Zip(pks[bp.GetHashCode()], (s, i) => new Tuple<int, string>(i, s));
 
                 foreach(Tuple<int, string> procedure in zipped)
                 {
                     procedures[procedure.Item1, "ResponseCode"] = procedure.Item2;
                 }
 
-                logger?.Log(LoggingInfo.ErrorLevel.INFO, "Successfully merged billable procedures for " + pks[bp] + " and " + response[bp]);
+                logger?.Log(LoggingInfo.ErrorLevel.INFO, "Successfully merged billable procedures for " + pks[bp.GetHashCode()] + " and " + response[bp]);
             }
 
             logger?.Log(LoggingInfo.ErrorLevel.INFO, "Finished merging billable procedure responses");
@@ -337,12 +337,13 @@ namespace Billing
         /// </remarks>
         /// <param name="target_month">The current month</param>
         /// <returns>The dictionary.</returns>
-        private Dictionary<BillableProcedure, List<int>> BillingDBAsDict(int target_month)
+        private Dictionary<int, List<int>> BillingDBAsDict(int target_month)
         {
-            Dictionary<BillableProcedure, List<int>> dict = new Dictionary<BillableProcedure, List<int>>();
+            Dictionary<int, List<int>> dict = new Dictionary<int, List<int>>();
 
-            foreach(object pk in procedures["BillingID"])
+            foreach (object pk in procedures.Keys)
             {
+
                 BillableProcedure bp = new BillableProcedure();
 
                 int aptid = (int)procedures[pk, "AppointmentID"];
@@ -359,18 +360,20 @@ namespace Billing
 
                 bp.day = (int)appointments[aptid, "Day"];
                 
-                bp.HCN = (string)people[procedures[pk, "PatientID"], "HCN"];
+                bp.HCN = (string)people[appointments[aptid, "PatientID"], "HCN"];
                 bp.code = (string)procedures[pk, "BillingCode"];
 
                 bp.sex = people[appointments[aptid, "PatientID"], "sex"].ToString()[0];
 
                 bp.fee = (string)billingMaster[bp.code, "DollarAmount"];
-                
-                List<int> pks = dict.ContainsKey(bp) ? dict[bp] : new List<int>();
+
+                int bpHash = bp.GetHashCode();
+
+                List<int> pks = dict.ContainsKey(bpHash) ? dict[bpHash] : new List<int>();
 
                 pks.Add((int)pk);
 
-                dict[bp] = pks;
+                dict[bpHash] = pks;
             }
 
             return dict;

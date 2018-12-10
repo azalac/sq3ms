@@ -89,7 +89,7 @@ namespace SchedulingUI
             AddContent(InitialContent);
 
             AddContent(new CancelRequestController());
-            AddContent(new PersonDataEntry());
+            //AddContent(new PersonDataEntry());
 
 
 
