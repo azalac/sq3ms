@@ -1,7 +1,7 @@
 /*
 * FILE          : Billing.cs
 * PROJECT       : INFO-2180 Software Quality 1, Term Project
-* PROGRAMMER    : Blake Ribble and Austin Zalac
+* PROGRAMMER    : Blake Ribble 
 * FIRST VERSION : November 23, 2018
 */
 

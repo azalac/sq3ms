@@ -1,6 +1,13 @@
-﻿using Billing;
+/*
+* FILE          : DatabaseWrapper.cs
+* PROJECT       : INFO-2180 Software Quality 1, Term Project
+* PROGRAMMER    : Austin Zalac
+* FIRST VERSION : November 15, 2018
+*/
+using Billing;
 using Definitions;
 using Demographics;
+using Billing;
 using Support;
 using System;
 using System.Collections.Generic;
@@ -130,6 +137,10 @@ namespace SchedulingUI
             return houses.AddHousehold(address1, address2, city,
                 province, phonenum, HOH_HCN);
         }
-
+        
+        public string CompileSummary(int month)
+        {
+            return billingIO.CompileStatistics(month);
+        }
     }
 }

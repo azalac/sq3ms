@@ -1,3 +1,9 @@
+/*
+* FILE          : DatabaseManager.cs
+* PROJECT       : INFO-2180 Software Quality 1, Term Project
+* PROGRAMMER    : Billy Parmenter
+* FIRST VERSION : November 29, 2018
+*/
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -23,8 +29,8 @@ namespace Support
 		static DatabaseManager()
 		{
 			AddTable(new TestTable(), "./test_table.dat");
-            AddTable(new BillingCodeTable(), "./billingCode_table.dat");
-            AddTable(new BillingMasterTable(), "./billingMaster_table.dat");
+            AddTable(new BillingCodeTable(), "./billable_procedures.dat");
+            AddTable(new BillingMasterTable(), "./billing_master.dat");
             AddTable(new PeopleTable (), "./people.dat");
 			AddTable(new AppointmentTable (), "./appointments.dat");
 			AddTable(new HouseholdTable (), "./households.dat");
@@ -89,10 +95,12 @@ namespace Support
 	/// </summary>
 	public class DatabaseTable
 	{
-		/// <summary>
-		/// The table's prototype
-		/// </summary>
-		private DatabaseTablePrototype prototype;
+        public IEnumerable<object> Keys { get => Data.Keys; }
+
+        /// <summary>
+        /// The table's prototype
+        /// </summary>
+        private DatabaseTablePrototype prototype;
 
 		/// <summary>
 		/// The table's physical file.
@@ -115,11 +123,6 @@ namespace Support
 		/// </summary>
 		public void Load()
 		{
-            if(!File.Exists(Location))
-            {
-                File.Create(Location);
-            }
-
             // call the custom reader if there is one
             if(prototype.CustomReader != null)
             {
@@ -127,7 +130,9 @@ namespace Support
                 return;
             }
 
-            using (BinaryReader input = new BinaryReader(new FileStream(Location, FileMode.OpenOrCreate)))
+            FileStream fstream = new FileStream(Location, FileMode.OpenOrCreate, FileAccess.Read, FileShare.ReadWrite);
+
+            using (BinaryReader input = new BinaryReader(fstream))
             {
                 while (input.PeekChar() != -1)
                 {
@@ -136,6 +141,8 @@ namespace Support
                     Data[row[prototype.PrimaryKeyIndex]] = row;
                 }
             }
+
+            fstream.Close();
 		}
 
 		/// <summary>
@@ -166,13 +173,17 @@ namespace Support
                     return;
                 }
 
-                using (BinaryWriter output = new BinaryWriter(new FileStream(Location, FileMode.Create)))
+                FileStream fstream = new FileStream(Location, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+
+                using (BinaryWriter output = new BinaryWriter(fstream))
                 {
                     foreach (object[] row in Data.Values)
                     {
                         prototype.SaveRowImpl(output, row);
                     }
                 }
+
+                fstream.Close();
 			}
 		}
 
@@ -253,34 +264,6 @@ namespace Support
         /// <summary>
         /// Gets all primary keys for rows where the specified column equals a specific value.
         /// </summary>
-        /// <remarks>
-        /// 
-        /// I recommend using this method with System.Linq, because it includes many helper methods.
-        /// 
-        /// Example (using Linq):
-        /// 
-        /// <code>
-        /// 
-        /// object pk = People.WhereEquals<string>("firstName", "[insert first name]").First();
-        /// 
-        /// object lastName = People[pk, "lastName"];
-        /// 
-        /// do something with lastName, etc.
-        /// 
-        /// </code>
-        /// 
-        /// Example (not using Linq):
-        /// 
-        /// <code>
-        /// 
-        /// foreach(object pk in People.WhereEquals<string>("firstName", "[insert first name]"))
-        /// {
-        ///     // this person has a first name which matches the given input, do something with it.
-        /// }
-        /// 
-        /// </code>
-        /// 
-        /// </remarks>
         /// <typeparam name="T">The column type.</typeparam>
         /// <param name="column">The column to compare against.</param>
         /// <param name="equals">The value to compare against.</param>
