@@ -53,6 +53,11 @@ namespace Billing
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(code);
             return hashCode;
         }
+
+        public override string ToString()
+        {
+            return string.Format("{0}, {1}, {2}; {3}:{4}; {5}:{6}", year, month, day, HCN, sex, code, response);
+        }
     }
 
     /// <summary>
@@ -127,7 +132,7 @@ namespace Billing
 
             string price = (string)billingMaster[code, "DollarAmount"];
 
-            return date.ToString("YYYYMMDD") + HCN + sex.ToString() + code + price;
+            return date.ToString("yyyyMMdd") + HCN + sex.ToString() + code + price;
         }
         
         public void GenerateMonthlyBillingFile(int month, string path)
@@ -136,9 +141,9 @@ namespace Billing
         }
 
         /// <summary>
-        /// Generates a monthly billing summary file.
+        /// Generates the contents for a monthly billing summary.
         /// </summary>
-        /// <param name="path">The path to output to</param>
+        /// <param name="month">The month to compile from</param>
         /// <remarks>
         /// Fields:
         /// 
@@ -151,7 +156,7 @@ namespace Billing
         /// 
         /// Format is supposed to be CSV, but no layout specified?
         /// </remarks>
-        public void WriteStatistics(string path, int month)
+        public string CompileStatistics(int month)
         {
 
             //Variables that hold information needed for report
@@ -164,12 +169,12 @@ namespace Billing
             float averageBilling = 0;
             
             //Loop through each billing code where the month is the month specified
-            foreach(object key in procedures.WhereEquals("Month", month))
+            foreach(object key in procedures.Keys.Where(pk => ((int)appointments[procedures[pk, "AppointmentID"], "Month"] == month)))
             {
                 totalEncounters++;
 
                 //Convert the value
-                float.TryParse(procedures[key, "Fee"].ToString(), out float billed);
+                float.TryParse(billingMaster[procedures[key, "BillingCode"], "DollarAmount"].ToString(), out float billed);
                 billedProcedures += billed;
 
                 //If the result is paid
@@ -190,15 +195,16 @@ namespace Billing
             averageBilling = receivedTotal / totalEncounters;
 
             //Build the report
-            StringBuilder saveToFile = new StringBuilder();
-            saveToFile.AppendFormat("Total Encounters Billed: {0}\n" +
+            StringBuilder data = new StringBuilder();
+            data.AppendFormat("Total Encounters Billed: {0}\n" +
                                     "Total Billed Procedures: {1}\n" +
                                     "Received Total: {2}\n" +
                                     "Received Percentage: {3}\n" +
                                     "Average Billing: {4}\n" +
                                     "Encounters To Follow-up: {5}\n", 
                                     totalEncounters, billedProcedures, receivedTotal, receivedPercentage, averageBilling, toFollowEncounters);
-            
+
+            return data.ToString();
         }
         
         /// <summary>
@@ -226,24 +232,38 @@ namespace Billing
         
         private void MatchProcedures(int month, Dictionary<BillableProcedure, List<string>> response, Logging logger = null)
         {
-            Dictionary<int, List<int>> pks = BillingDBAsDict(month);
+            Dictionary<BillableProcedure, List<int>> pks = BillingDBAsDict(month);
+
+            int year = CalendarManager.ConvertMonthToYear(ref month);
 
             foreach(BillableProcedure bp in response.Keys)
             {
-                if(pks[bp.GetHashCode()].Count != response[bp].Count)
+                if(bp.month != month || bp.year != year)
+                {
+                    logger?.Log(LoggingInfo.ErrorLevel.ERROR, "Invalid date for response");
+                    continue;
+                }
+                
+                if(!response.ContainsKey(bp))
+                {
+                    logger?.Log(LoggingInfo.ErrorLevel.WARN, "Could not match " + bp + " to known procedures");
+                    continue;
+                }
+
+                if(pks[bp].Count != response[bp].Count)
                 {
                     logger?.Log(LoggingInfo.ErrorLevel.ERROR, "Billable procedure response and database data mistmatch for procedure " + bp);
                     continue;
                 }
 
-                var zipped = response[bp].Zip(pks[bp.GetHashCode()], (s, i) => new Tuple<int, string>(i, s));
+                var zipped = response[bp].Zip(pks[bp], (s, i) => new Tuple<int, string>(i, s));
 
                 foreach(Tuple<int, string> procedure in zipped)
                 {
-                    procedures[procedure.Item1, "ResponseCode"] = procedure.Item2;
+                    procedures[procedure.Item1, "CodeResponse"] = (BillingCodeResponse) Enum.Parse(typeof(BillingCodeResponse), procedure.Item2);
                 }
 
-                logger?.Log(LoggingInfo.ErrorLevel.INFO, "Successfully merged billable procedures for " + pks[bp.GetHashCode()] + " and " + response[bp]);
+                logger?.Log(LoggingInfo.ErrorLevel.INFO, "Successfully merged billable procedures for " + pks[bp] + " and " + response[bp]);
             }
 
             logger?.Log(LoggingInfo.ErrorLevel.INFO, "Finished merging billable procedure responses");
@@ -261,7 +281,7 @@ namespace Billing
 
                     List<string> codes = _data.ContainsKey(bp) ? _data[bp] : new List<string>();
 
-                    codes.Add(bp.code);
+                    codes.Add(bp.response);
 
                     _data[bp] = codes;
                 }
@@ -337,13 +357,12 @@ namespace Billing
         /// </remarks>
         /// <param name="target_month">The current month</param>
         /// <returns>The dictionary.</returns>
-        private Dictionary<int, List<int>> BillingDBAsDict(int target_month)
+        private Dictionary<BillableProcedure, List<int>> BillingDBAsDict(int target_month)
         {
-            Dictionary<int, List<int>> dict = new Dictionary<int, List<int>>();
+            Dictionary<BillableProcedure, List<int>> dict = new Dictionary<BillableProcedure, List<int>>();
 
             foreach (object pk in procedures.Keys)
             {
-
                 BillableProcedure bp = new BillableProcedure();
 
                 int aptid = (int)procedures[pk, "AppointmentID"];
@@ -366,14 +385,12 @@ namespace Billing
                 bp.sex = people[appointments[aptid, "PatientID"], "sex"].ToString()[0];
 
                 bp.fee = (string)billingMaster[bp.code, "DollarAmount"];
-
-                int bpHash = bp.GetHashCode();
-
-                List<int> pks = dict.ContainsKey(bpHash) ? dict[bpHash] : new List<int>();
+                
+                List<int> pks = dict.ContainsKey(bp) ? dict[bp] : new List<int>();
 
                 pks.Add((int)pk);
 
-                dict[bpHash] = pks;
+                dict[bp] = pks;
             }
 
             return dict;
