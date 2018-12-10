@@ -20,6 +20,11 @@ namespace SchedulingUI
 
         private static int Level = CONTROLLER_EVENTS | ETC_EVENTS;
 
+        /// <summary>
+        /// Logs the message to Debug
+        /// </summary>
+        /// <param name="level">The level of message</param>
+        /// <param name="message">The log message</param>
         public static void Log(int level, object message)
         {
             if((level & Level) != 0)
@@ -28,16 +33,29 @@ namespace SchedulingUI
             }
         }
 
+        /// <summary>
+        /// Logs component events
+        /// </summary>
+        /// <param name="message">The log message</param>
         public static void LogComponent(object message)
         {
             Log(COMPONENT_EVENTS, message);
         }
+
+        /// <summary>
+        /// Logs controller events
+        /// </summary>
+        /// <param name="message">The log message</param>
 
         public static void LogController(object message)
         {
             Log(CONTROLLER_EVENTS, message);
         }
 
+        /// <summary>
+        /// Logs ETC events
+        /// </summary>
+        /// <param name="message">The log message</param>
         public static void LogOther(object message)
         {
             Log(ETC_EVENTS, message);
