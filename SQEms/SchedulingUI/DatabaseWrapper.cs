@@ -111,6 +111,10 @@ namespace SchedulingUI
         {
             return billingIO.ParseResponse(month, responsepath);
         }
-
+        
+        public string CompileSummary(int month)
+        {
+            return billingIO.CompileStatistics(month);
+        }
     }
 }
