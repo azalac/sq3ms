@@ -89,7 +89,6 @@ namespace SchedulingUI
             AddContent(InitialContent);
 
             AddContent(new CancelRequestController());
-            AddContent(new PersonDataEntry());
 
 
 
@@ -151,7 +150,7 @@ namespace SchedulingUI
         public static void SetupSchedulingContent(DatabaseWrapper wrapper,
             Action<object> content_adder, InterfaceWorkflowController controller)
         {
-            SchedulingWorkflowInitializer.Initialize(content_adder, controller);
+            new SchedulingWorkflowInitializer(wrapper).Initialize(content_adder, controller);
 
             BillingWorkflowInitializer.Initialize(content_adder, controller);
 
@@ -160,12 +159,23 @@ namespace SchedulingUI
         
     }
 
-    static class SchedulingWorkflowInitializer
+    class SchedulingWorkflowInitializer
     {
 
-        public static void Initialize(Action<object> content_adder, InterfaceWorkflowController controller)
+        private DatabaseWrapper wrapper;
+
+        public SchedulingWorkflowInitializer(DatabaseWrapper wrapper)
         {
-            
+            this.wrapper = wrapper;
+        }
+
+        public void Initialize(Action<object> content_adder, InterfaceWorkflowController controller)
+        {
+            content_adder(new PersonSearchContent());
+            content_adder(new PersonAddContent());
+            content_adder(new HouseDataInputContent());
+
+
             ButtonSelector timeselector = new ButtonSelector("TimeslotSelect", 3, "Dummy");
 
             timeselector.BindButtonToOption("Dummy", "time", null);
@@ -174,106 +184,280 @@ namespace SchedulingUI
 
 
 
-            ButtonSelector searchtypeselect = new ButtonSelector("PersonSearchType", 2,
-                "Search", "Add New Person");
+            ButtonSelector patient = new ButtonSelector("SearchOrAddPatient", 2,
+                "Search", "Add New Patient");
 
-            searchtypeselect.BindButtonToOption("Search", "option", "search");
+            patient.BindButtonToOption("Search", "option", "search");
 
-            searchtypeselect.BindButtonToOption("Add New Person", "option", "addperson");
+            patient.BindButtonToOption("Add New Patient", "option", "add");
 
-            content_adder(searchtypeselect);
+            content_adder(patient);
 
 
 
-            ButtonSelector hascaregiver = new ButtonSelector("AddCaregiver", 3,
+
+            ButtonSelector caregiver = new ButtonSelector("SearchOrAddCaregiver", 2,
+                "Search", "Add New Caregiver");
+
+            caregiver.BindButtonToOption("Search", "option2", "search");
+
+            caregiver.BindButtonToOption("Add New Caregiver", "option2", "add");
+
+            content_adder(caregiver);
+
+
+
+
+            ButtonSelector hascaregiver = new ButtonSelector("HasCaregiver", 3,
                 "Yes", "No");
 
-            hascaregiver.BindButtonToOption("Yes", "hascaregiver", true);
-            hascaregiver.BindButtonToOption("No", "hascaregiver", false);
+            hascaregiver.BindButtonToOption("Yes", "option", true);
+            hascaregiver.BindButtonToOption("No", "option", false);
 
             content_adder(hascaregiver);
 
 
+
+
+            ButtonSelector houseselector = new ButtonSelector("HouseSelector", 3,
+                "Find Household", "Add Household", "Ignore");
+
+            houseselector.BindButtonToOption("Find Household", "house", "find");
+            houseselector.BindButtonToOption("Add Household", "house", "add");
+            houseselector.BindButtonToOption("Ignore", "house", "ignore");
+
+            content_adder(houseselector);
+
+
+
             controller.AddWorkflow("Schedule Apt",
                 "TimeslotSelect;" +
-                "PersonSearchType(:Search for or Add Patient?);" +
-                "PersonDataEntry(!searching);" +
-                "AddCaregiver(:Add Caregiver to Appointment?)",
-                AcceptScheduleData, ScheduleRedirect,
-                null, PatientSearchTypeValidator, SearchPersonValidator, null);
+                "SearchOrAddPatient(:Search for or Add Patient?);" + // redirect to search or add
+                "HasCaregiver(:Add Caregiver to Appointment?)", // redirect to select caregiver
+                AcceptScheduleData,
+                SearchOrAddPatientRedirect);
 
-            controller.AddWorkflow("Add Caregiver",
-                "PersonSearchType(:Search for or Add Caregiver?);PersonDataEntry;",
-                AcceptAddCaregiverData, null,
-                CaregiverSearchTypeValidator, SearchPersonValidator);
+            // FIND OR ADD CAREGIVER
+            controller.AddWorkflow("GetCaregiver",
+                "SearchOrAddCaregiver(:Search for or Add Caregiver?);" +
+                "SearchOrAddCaregiver(:Search for or Add Caregiver?);",
+                FinishMergeCaregiver,
+                SearchOrAddCaregiverRedirect);
+            
+            // FIND PATIENT
+            controller.AddWorkflow("SearchPatient",
+                "PersonSearch;",
+                FinishMergePatient,
+                null,
+                SearchPatient);
+
+            // ADD PATIENT
+            controller.AddWorkflow("AddPatient",
+                "PersonAddEntry;" +
+                "HouseSelector;",
+                FinishMergePatient,
+                SearchOrAddOrIgnoreHouseholdRedirect);
+
+            // FIND CAREGIVER
+            controller.AddWorkflow("SearchCaregiver",
+                "PersonSearch;",
+                FinishMergeCaregiver,
+                null,
+                SearchPatient);
+
+            // ADD CAREGIVER
+            controller.AddWorkflow("AddCaregiver",
+                "PersonAddEntry;" +
+                "HouseSelector;",
+                FinishMergeCaregiver,
+                SearchOrAddOrIgnoreHouseholdRedirect);
+
+            // FIND HOUSEHOLD
+            controller.AddWorkflow("SearchHousehold",
+                "HouseDataEntry",
+                FinishMergeHousehold,
+                null,
+                ValidateFindHousehold);
+
+            // ADD HOUSEHOLD
+            controller.AddWorkflow("AddHousehold",
+                "HouseDataEntry",
+                FinishMergeHousehold,
+                null,
+                ValidateAddHousehold);
+
 
 
         }
 
-        private static Dictionary<string, object> AcceptScheduleData(Dictionary<string, object> data)
+        #region Patient Getting
+
+        private string SearchOrAddPatientRedirect(int stage, string stage_name, bool valid, Dictionary<string, object> values)
+        {
+            if (Equals(stage_name, "SearchOrAddPatient"))
+            {
+                if (valid && InterfaceWorkflowController.CheckEquals(values, "option", "search"))
+                {
+                    values.Remove("option");
+                    return "SearchPatient";
+                }
+
+                if (valid && InterfaceWorkflowController.CheckEquals(values, "option", "add"))
+                {
+                    values.Remove("option");
+                    return "AddPatient";
+                }
+            }
+
+            if(Equals(stage_name, "HasCaregiver"))
+            {
+                if (valid && InterfaceWorkflowController.CheckEquals(values, "option", true))
+                {
+                    values.Remove("option");
+                    return "GetCaregiver";
+                }
+            }
+
+            return null;
+        }
+
+        private bool SearchPatient(Dictionary<string, object> data, out string message)
+        {
+            object pk = wrapper.FindPerson(GON<string>(data, "First Name"), GON<char?>(data, "Middle Initial"),
+                GON<string>(data, "Last Name"), GON<string>(data, "Phone Number"), GON<string>(data, "HCN"));
+
+            data["PatientID"] = pk;
+
+            message = pk == null ? "Could not find that person" : "";
+
+            return pk != null;
+        }
+
+        private bool AddPatient(Dictionary<string, object> data, out string message)
+        {
+            object pk = wrapper.AddPerson(GON<string>(data, "First Name"), GON<char>(data, "Middle Initial"),
+                GON<string>(data, "Last Name"), GON<string>(data, "Date Of Birth"), GON<char>(data, "Sex"),
+                GON<string>(data, "HCN"));
+
+            data["PatientID"] = pk;
+
+            message = "";
+
+            return true;
+
+        }
+
+        private Dictionary<string, object> FinishMergePatient(Dictionary<string, object> data)
+        {
+            return new Dictionary<string, object>() { ["PatientID"] = data["PatientID"] };
+        }
+        
+        #endregion
+
+        #region Caregiver Getting
+
+        private string SearchOrAddCaregiverRedirect(int stage, string stage_name, bool valid, Dictionary<string, object> values)
+        {
+            if(stage == 0)
+            {
+                return null;
+            }
+
+            if (Equals(stage_name, "SearchOrAddCaregiver"))
+            {
+                if (valid && InterfaceWorkflowController.CheckEquals(values, "option2", "search"))
+                {
+                    values.Remove("option");
+                    return "SearchCaregiver";
+                }
+                if (valid && InterfaceWorkflowController.CheckEquals(values, "option2", "add"))
+                {
+                    values.Remove("option");
+                    return "AddCaregiver";
+                }
+            }
+
+            return null;
+        }
+        
+        private Dictionary<string, object> FinishMergeCaregiver(Dictionary<string, object> data)
+        {
+            return new Dictionary<string, object>() { ["CaregiverID"] = GON<int>(data, "CaregiverID") };
+        }
+
+        #endregion
+
+        #region Household Getting
+
+        private string SearchOrAddOrIgnoreHouseholdRedirect(int stage, string stage_name, bool valid, Dictionary<string, object> values)
+        {
+            if (valid && InterfaceWorkflowController.CheckEquals(values, "house", "find"))
+            {
+                values["house"] = null;
+                return "SearchHousehold";
+            }
+            if (valid && InterfaceWorkflowController.CheckEquals(values, "house", "add"))
+            {
+                values["house"] = null;
+                return "AddHousehold";
+            }
+            if (valid && InterfaceWorkflowController.CheckEquals(values, "house", "ignore"))
+            {
+                return null;
+            }
+
+            throw new InvalidOperationException("Invalid option");
+        }
+
+        private bool ValidateFindHousehold(Dictionary<string, object> values, out string message)
+        {
+            values["HouseID"] = wrapper.FindHousehold((string)values["Address Line 1"], (string)values["Address Line 2"],
+                    (string)values["City"], (string)values["Province"], (string)values["Phone Number"]);
+
+            message = values["HouseID"] == null ? "Cannot find that household" : "";
+
+            return true;
+        }
+
+        private bool ValidateAddHousehold(Dictionary<string, object> values, out string message)
+        {
+            values["HouseID"] = wrapper.AddHousehold((string)values["Address Line 1"], (string)values["Address Line 2"],
+                    (string)values["City"], (string)values["Province"], (string)values["Phone Number"],
+                    (string)values["Head Of House HCN"]);
+
+            message = "";
+
+            return true;
+        }
+
+        private Dictionary<string, object> FinishMergeHousehold(Dictionary<string, object> data)
+        {
+            return new Dictionary<string, object>() { ["HouseID"] = data["HouseID"] };
+        }
+
+        #endregion
+
+
+        private Dictionary<string, object> AcceptScheduleData(Dictionary<string, object> data)
         {
             DebugLog.LogOther("Schedule Apt: " + string.Join(", ", from kvp in data select kvp.Key + "=" + kvp.Value));
 
             return null;
         }
-
-        private static bool PatientSearchTypeValidator(Dictionary<string, object> values, out string message)
+        
+        /// <summary>
+        /// 'Get Or Null' - short hand method to get a key or null.
+        /// </summary>
+        private T GON<T>(Dictionary<string, object> data, string key)
         {
-
-            if (values.ContainsKey("option"))
+            if(data.ContainsKey(key))
             {
-                values["searching"] = InterfaceWorkflowController.CheckEquals(values, "option", "search");
-                values["patient_option"] = values["option"];
+                return (T)data[key];
             }
-
-            message = "";
-
-            return true;
-        }
-
-        private static bool SearchPersonValidator(Dictionary<string, object> values, out string message)
-        {
-            message = "";
-
-            // do nothing when adding a person
-            if (InterfaceWorkflowController.CheckEquals(values, "searching", false))
+            else
             {
-                return true;
+                return default(T);
             }
-
-            // validate that person exists here
-
-            return true;
-        }
-
-        private static bool CaregiverSearchTypeValidator(Dictionary<string, object> values, out string message)
-        {
-            if (values.ContainsKey("option"))
-            {
-                values["searching"] = InterfaceWorkflowController.CheckEquals(values, "option", "search");
-                values["caregiver_option"] = values["option"];
-            }
-
-            message = "";
-
-            return true;
-        }
-
-        private static string ScheduleRedirect(int stage, string stage_name, bool valid, Dictionary<string, object> values)
-        {
-            if (Equals(stage_name, "AddCaregiver") && valid && InterfaceWorkflowController.CheckEquals(values, "hascaregiver", true))
-            {
-                return "Add Caregiver";
-            }
-
-            return null;
-        }
-
-        private static Dictionary<string, object> AcceptAddCaregiverData(Dictionary<string, object> data)
-        {
-            DebugLog.LogOther("Add Caregiver: " + string.Join(", ", from kvp in data select kvp.Key + "=" + kvp.Value));
-
-            return new Dictionary<string, object>() { };
         }
 
     }
@@ -451,6 +635,8 @@ namespace SchedulingUI
 
             CalendarManager.NormalizeDate(ref current_week);
 
+            Week.Value = current_week;
+
             UpdateLabelText();
         }
 
@@ -465,18 +651,21 @@ namespace SchedulingUI
 
             if (args.Key.Key == ConsoleKey.I)
             {
-                current_week = current_week.AddDays(-7);
-                UpdateLabelText();
+                current_week = current_week.AddDays(7);
                 handled = true;
             }
             else if (args.Key.Key == ConsoleKey.K)
             {
-                current_week = current_week.AddDays(7);
-                UpdateLabelText();
+                current_week = current_week.AddDays(-7);
                 handled = true;
             }
 
-            Week.Value = current_week;
+            if(handled)
+            {
+                Week.Value = current_week;
+                UpdateLabelText();
+
+            }
 
             return handled;
             
@@ -484,28 +673,35 @@ namespace SchedulingUI
 
         private void UpdateLabelText()
         {
-            nav_instructions.Text = string.Format("I /\\\n{0}\nK \\/", Week.Value.ToString("MMMM, yyyy"));
+            nav_instructions.Text = string.Format("I /\\\n{0}\nK \\/", Week.Value.ToString("MMM, yyyy"));
 
             OnRequestRedraw(this, new RedrawEventArgs(nav_instructions));
 
             for (int i = 0; i < CalendarInfo.WEEK_LENGTH; i++)
             {
-                //Added the 1 for the month to be search, should be changed
-                int? count = wrapper.GetAppointmentCount(Week.Value.Month, Week.Value.Day + i);
+                int count = wrapper.GetAppointmentCount(current_week.Month, current_week.Day + i) ?? -1;
 
                 string old_text = day_labels[i].Text;
 
-                if (count.HasValue)
+                int day = current_week.Day + i;
+                string ending = "th";
+
+                switch(day % 10)
                 {
-                    day_labels[i].Text = string.Format("{2}\n{0}/{1}",
-                        count.Value, CalendarInfo.MAX_APPOINTMENTS[i], (DayOfWeek)i);
-                }
-                else
-                {
-                    day_labels[i].Text = string.Format("{2}\n{0}/{1}",
-                        "?", CalendarInfo.MAX_APPOINTMENTS[i], (DayOfWeek)i);
+                    case 1:
+                        ending = "st";
+                        break;
+                    case 2:
+                        ending = "nd";
+                        break;
+                    case 3:
+                        ending = "rd";
+                        break;
                 }
 
+                day_labels[i].Text = string.Format("{2}\n{3}\n{0}/{1}",
+                    count, CalendarInfo.MAX_APPOINTMENTS[i], (DayOfWeek)i, day + ending);
+                
                 // only redraw label if necessary
                 if (old_text != day_labels[i].Text)
                 {
