@@ -40,6 +40,8 @@ namespace Support
 
     }
 
+
+
     /// <summary>
     /// The prototype for the patient table.
     /// </summary>
@@ -224,6 +226,7 @@ namespace Support
     /// </remarks>
     public class BillingCodeTable : DatabaseTablePrototype
     {
+
         public BillingCodeTable() : base(4)
         {
             Name = "Billing";

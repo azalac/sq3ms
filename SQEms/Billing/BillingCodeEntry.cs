@@ -1,4 +1,4 @@
-﻿/*
+/*
 * FILE          : BillingCodeEntry.cs
 * PROJECT       : INFO-2180 Software Quality 1, Term Project
 * PROGRAMMER    : Blake Ribble 
@@ -69,6 +69,11 @@ namespace Billing
             hashCode = hashCode * -1521134295 + sex.GetHashCode();
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(code);
             return hashCode;
+        }
+
+        public override string ToString()
+        {
+            return string.Format("{0}, {1}, {2}; {3}:{4}; {5}:{6}", year, month, day, HCN, sex, code, response);
         }
     }
 
@@ -150,8 +155,7 @@ namespace Billing
             //Gets the fee price at corresponding pk
             string price = (string)billingMaster[code, "DollarAmount"];
 
-            //Returns the full billing code
-            return date.ToString("YYYYMMDD") + HCN + sex.ToString() + code + price;
+            return date.ToString("yyyyMMdd") + HCN + sex.ToString() + code + price;
         }
 
         /// <summary>
@@ -165,10 +169,9 @@ namespace Billing
         }
 
         /// <summary>
-        /// Generates a monthly billing summary file.
+        /// Generates the contents for a monthly billing summary.
         /// </summary>
-        /// <param name="path">The path to output to</param>
-        /// <param name="month">The month requested</param>
+        /// <param name="month">The month to compile from</param>
         /// <remarks>
         /// Fields:
         /// 
@@ -180,7 +183,7 @@ namespace Billing
         /// Num. Encounters to Follow-up (count of FHCV and CMOH)
         /// 
         /// </remarks>
-        public void WriteStatistics(string path, int month)
+        public string CompileStatistics(int month)
         {
 
             //Variables that hold information needed for report
@@ -193,12 +196,12 @@ namespace Billing
             float averageBilling = 0;
             
             //Loop through each billing code where the month is the month specified
-            foreach(object key in procedures.WhereEquals("Month", month))
+            foreach(object key in procedures.Keys.Where(pk => ((int)appointments[procedures[pk, "AppointmentID"], "Month"] == month)))
             {
                 totalEncounters++;
 
                 //Convert the value
-                float.TryParse(procedures[key, "Fee"].ToString(), out float billed);
+                float.TryParse(billingMaster[procedures[key, "BillingCode"], "DollarAmount"].ToString(), out float billed);
                 billedProcedures += billed;
 
                 //If the result is paid
@@ -219,14 +222,15 @@ namespace Billing
             averageBilling = receivedTotal / totalEncounters;
 
             //Build the report
-            StringBuilder saveToFile = new StringBuilder();
-            saveToFile.AppendFormat("Total Encounters Billed: {0}\n" +
+            StringBuilder data = new StringBuilder();
+            data.AppendFormat("Total Encounters Billed: {0}\n" +
                                     "Total Billed Procedures: {1}\n" +
                                     "Received Total: {2}\n" +
                                     "Received Percentage: {3}\n" +
                                     "Average Billing: {4}\n" +
                                     "Encounters To Follow-up: {5}\n", 
-                                    totalEncounters, billedProcedures, receivedTotal, receivedPercentage, averageBilling, toFollowEncounters);   
+                                    totalEncounters, billedProcedures, receivedTotal, receivedPercentage, averageBilling, toFollowEncounters);
+            return data.ToString();
         }
         
         /// <summary>
@@ -269,10 +273,22 @@ namespace Billing
             //Create a dictionary of pks
             Dictionary<BillableProcedure, List<int>> pks = BillingDBAsDict(month);
 
-            //Loop through each billable procedure
+            int year = CalendarManager.ConvertMonthToYear(ref month);
+
             foreach(BillableProcedure bp in response.Keys)
             {
-                //If the counts are not equals
+                if(bp.month != month || bp.year != year)
+                {
+                    logger?.Log(LoggingInfo.ErrorLevel.ERROR, "Invalid date for response");
+                    continue;
+                }
+                
+                if(!response.ContainsKey(bp))
+                {
+                    logger?.Log(LoggingInfo.ErrorLevel.WARN, "Could not match " + bp + " to known procedures");
+                    continue;
+                }
+
                 if(pks[bp].Count != response[bp].Count)
                 {
                     logger?.Log(LoggingInfo.ErrorLevel.ERROR, "Billable procedure response and database data mismatched for procedure " + bp);
@@ -285,7 +301,7 @@ namespace Billing
                 //Loop through each procedure
                 foreach(Tuple<int, string> procedure in zipped)
                 {
-                    procedures[procedure.Item1, "ResponseCode"] = procedure.Item2;
+                    procedures[procedure.Item1, "CodeResponse"] = (BillingCodeResponse) Enum.Parse(typeof(BillingCodeResponse), procedure.Item2);
                 }
 
                 //Log the success
@@ -320,8 +336,7 @@ namespace Billing
                     //Create a list to store info
                     List<string> codes = _data.ContainsKey(bp) ? _data[bp] : new List<string>();
 
-                    //Add the code to list
-                    codes.Add(bp.code);
+                    codes.Add(bp.response);
 
                     //Save the list to dictionary
                     _data[bp] = codes;
@@ -422,8 +437,7 @@ namespace Billing
             //Creates a new dictionary
             Dictionary<BillableProcedure, List<int>> dict = new Dictionary<BillableProcedure, List<int>>();
 
-            //Loop through each pk
-            foreach(object pk in procedures["BillingID"])
+            foreach (object pk in procedures.Keys)
             {
                 //Create a new billable procedure
                 BillableProcedure bp = new BillableProcedure();
@@ -443,10 +457,15 @@ namespace Billing
                 //Obtain all of the information needed
                 bp.year = CalendarManager.ConvertMonthToYear(ref month);
                 bp.month = month;
-                bp.day = (int)appointments[aptid, "Day"];            
-                bp.HCN = (string)people[procedures[pk, "PatientID"], "HCN"];
+              
+                bp.day = (int)appointments[aptid, "Day"];
+                
+                bp.HCN = (string)people[appointments[aptid, "PatientID"], "HCN"];
+              
                 bp.code = (string)procedures[pk, "BillingCode"];
+              
                 bp.sex = people[appointments[aptid, "PatientID"], "sex"].ToString()[0];
+              
                 bp.fee = (string)billingMaster[bp.code, "DollarAmount"];
                 
                 //Create a list that will hold this information

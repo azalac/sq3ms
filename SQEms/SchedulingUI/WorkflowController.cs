@@ -410,7 +410,7 @@ namespace SchedulingUI
         /// </summary>
         private void Reset()
         {
-            current = new WorkflowInstance();
+            current = null;
         }
 
 

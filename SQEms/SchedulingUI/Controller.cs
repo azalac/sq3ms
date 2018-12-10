@@ -95,7 +95,7 @@ namespace SchedulingUI
             AddContent(InitialContent);
 
             AddContent(new CancelRequestController());
-            AddContent(new PersonDataEntry());
+            //AddContent(new PersonDataEntry());
 
 
 
@@ -327,9 +327,11 @@ namespace SchedulingUI
                 InterfaceWorkflowController.IDENTITY_ACCEPTOR, InterfaceWorkflowController.IDENTITY_REDIRECT,
                 DoBillingOutput);
 
-            controller.AddWorkflow("ParseResponse", "MonthFilePath(:Enter the month and input file);",
+            controller.AddWorkflow("ParseResponse",
+                "MonthFilePath(:Enter the month and input file);" +
+                "ShowSummary(!summary)",
                 InterfaceWorkflowController.IDENTITY_ACCEPTOR, InterfaceWorkflowController.IDENTITY_REDIRECT,
-                DoParseResponse);
+                DoParseResponse, null);
 
             controller.AddWorkflow("Billing\nManagement", "GenerateOrParse;",
                 InterfaceWorkflowController.IDENTITY_ACCEPTOR, ControlRedirect);
@@ -344,12 +346,14 @@ namespace SchedulingUI
             content_adder(generateorparse);
 
             content_adder(new MonthFilePathDataEntry());
-
+            content_adder(new SummaryDisplay());
         }
         
         private bool DoBillingOutput(Dictionary<string, object> values, out string message)
         {
-            wrapper.GenerateBillingFile((int)values["Month"], (string)values["File Path"]);
+            int absmonth = CalendarManager.ConvertYearMonthToMonth((int)values["Year"], (int)values["Month"]);
+
+            wrapper.GenerateBillingFile(absmonth, (string)values["File Path"]);
 
             message = "";
 
@@ -358,9 +362,13 @@ namespace SchedulingUI
 
         private bool DoParseResponse(Dictionary<string, object> values, out string message)
         {
-            if(wrapper.DoBillingReconcile((int)values["Month"], (string)values["File Path"]))
+            int absmonth = CalendarManager.ConvertYearMonthToMonth((int)values["Year"], (int)values["Month"]);
+
+            if (wrapper.DoBillingReconcile(absmonth, (string)values["File Path"]))
             {
                 message = "";
+
+                values["summary"] = wrapper.CompileSummary(absmonth);
 
                 return true;
             }
@@ -384,6 +392,73 @@ namespace SchedulingUI
             }
 
             return null;
+        }
+
+        private class SummaryDisplay : TernaryContainer, IInterfaceContent
+        {
+            public string Name => "ShowSummary";
+
+            public event EventHandler<ReferenceArgs<Dictionary<string, object>>> Finish;
+
+            private InputController input = new InputController();
+
+            private Label text = new Label()
+            {
+                Center = true,
+                PreferredHeight = 6
+            };
+
+            private Button ok = new Button()
+            {
+                Text = "Finish",
+                PreferredHeight = 2
+            };
+
+            public SummaryDisplay()
+            {
+
+                input.Add(ok);
+                input.Parent = this;
+
+                Label padding = new Label();
+
+                Add(text, padding, ok);
+
+                First = text;
+                Second = padding;
+                Third = ok;
+
+                Vertical = true;
+
+                ok.Action += Ok_Action;
+
+            }
+
+            private void Ok_Action(object sender, ComponentEventArgs e)
+            {
+                Finish?.Invoke(this, new ReferenceArgs<Dictionary<string, object>>(new Dictionary<string, object>()));
+            }
+
+            public void Activate(params string[] arguments)
+            {
+                if(arguments != null && arguments.Length > 1)
+                {
+                    text.Text = arguments[0];
+                }
+
+                input.Activate();
+
+            }
+
+            public void Deactivate()
+            {
+                input.Deactivate();
+            }
+
+            public void Initialize(RootContainer root)
+            {
+
+            }
         }
 
     }
