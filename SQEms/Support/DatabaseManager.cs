@@ -89,10 +89,12 @@ namespace Support
 	/// </summary>
 	public class DatabaseTable
 	{
-		/// <summary>
-		/// The table's prototype
-		/// </summary>
-		private DatabaseTablePrototype prototype;
+        public IEnumerable<object> Keys { get => Data.Keys; }
+
+        /// <summary>
+        /// The table's prototype
+        /// </summary>
+        private DatabaseTablePrototype prototype;
 
 		/// <summary>
 		/// The table's physical file.
