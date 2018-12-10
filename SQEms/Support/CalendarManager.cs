@@ -33,8 +33,8 @@ namespace Support
         }
 
         /// <summary>
-        /// Figures out the year, if the month is an integer since 1970, January.
-        /// Also wraps the month to 0-11
+        /// Calculates out the year, if the month is an integer since 1970, January.
+        /// Also wraps the month to 0-11.
         /// </summary>
         /// <param name="month">The month</param>
         /// <returns>The year.</returns>
@@ -45,6 +45,17 @@ namespace Support
             month %= 12;
 
             return yearoffset + 1970;
+        }
+
+        /// <summary>
+        /// Converts a year and a month to a absolute month.
+        /// </summary>
+        /// <param name="year">The year.</param>
+        /// <param name="month">The month.</param>
+        /// <returns>The absolute month.</returns>
+        public static int ConvertYearMonthToMonth(int year, int month)
+        {
+            return (year - 1970) * 12 + month;
         }
 
         /// <summary>

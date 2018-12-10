@@ -406,6 +406,7 @@ namespace SchedulingUI
                     if (labels[i].Text.Equals(label))
                     {
                         inputs[i].Text = value;
+                        return;
                     }
                 }
 
@@ -695,11 +696,26 @@ namespace SchedulingUI
     public class MonthFilePathDataEntry: FormInputSelectorContent
     {
         public MonthFilePathDataEntry():
-            base("Month", "File Path")
+            base("Year", "Month", "File Path")
         {
             Name = "MonthFilePath";
-
+            
+            Parsers["Year"] = ParseInt;
             Parsers["Month"] = ParseMonth;
+        }
+
+        private object ParseInt(string text, out bool valid)
+        {
+            valid = int.TryParse(text, out int number);
+
+            if (valid)
+            {
+                return number;
+            }
+            else
+            {
+                return null;
+            }
         }
 
         private object ParseMonth(string text, out bool valid)
@@ -718,7 +734,7 @@ namespace SchedulingUI
 
         public override void HandleArguments(string[] arguments)
         {
-
+            this["Year"] = "2017";
         }
     }
 
