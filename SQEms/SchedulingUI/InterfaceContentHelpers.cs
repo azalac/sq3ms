@@ -1,4 +1,10 @@
-﻿using Demographics;
+﻿/*
+* FILE          : InterfaceContentHelpers.cs
+* PROJECT       : INFO-2180 Software Quality 1, Term Project
+* PROGRAMMER    : Austin Zalac
+* FIRST VERSION : November 20, 2018
+*/
+using Demographics;
 using Support;
 using System;
 using System.Collections.Generic;

@@ -1,3 +1,9 @@
+/*
+* FILE          : CalendarInfo.cs - Definitions
+* PROJECT       : INFO-2180 Software Quality 1, Term Project
+* PROGRAMMER    : Austin Zalac
+* FIRST VERSION : November 20, 2018
+*/
 using System;
 
 namespace Definitions
