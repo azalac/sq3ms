@@ -43,8 +43,6 @@ namespace Billing
         /// <param name="code">The billing code</param>
 		public void AddBillingCode(int AppointmentID, string code)
         {
-            // sorry for mangling this, there was a lot of normalization issues with the db
-
             //Get billingID
             int billingID = BillingEntries.GetMaximum("BillingID") + 1;
             
@@ -62,6 +60,7 @@ namespace Billing
             //Loop through each key and delete the row if value is the same as what is being searched for
             foreach (object key in BillingEntries.WhereEquals("AppointmentID", AppointmentID))
             {
+                //If the billing codes match
                 if (BillingEntries[key, "BillingCode"].ToString() == code)
                 {
                     BillingEntries.DeleteRow(key);
