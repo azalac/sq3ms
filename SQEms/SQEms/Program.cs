@@ -1,4 +1,11 @@
-﻿using SchedulingUI;
+﻿/*
+* FILE          : Program.cs
+* PROJECT       : INFO-2180 Software Quality 1, Term Project
+* PROGRAMMER    : Team Odysseus
+* FIRST VERSION : November 20, 2018
+*/
+
+using SchedulingUI;
 using Definitions;
 using Support;
 using System;
@@ -15,12 +22,17 @@ namespace SQEms
     {
         public const bool populate_test_data = true;
 
+        /// <summary>
+        /// Contains the program main
+        /// </summary>
+        /// 
         static void Main(string[] args)
 		{
+            //Create and load database
             DatabaseManager database = new DatabaseManager();
-
             database.LoadAll();
 
+            //Declare database infomation
             if (populate_test_data)
             {
                 DatabaseTable patients = database["Patients"];
@@ -37,11 +49,13 @@ namespace SQEms
 
                 //Create first appointment
                 appointments.Insert(1, CalendarManager.ConvertYearMonthToMonth(2017, 11), 3, 0, 1, 1);
+
                 //Create first billing row
                 billing.Insert(1, 1, "A665", BillingCodeResponse.NONE);
 
                 //Second appointment
                 appointments.Insert(2, CalendarManager.ConvertYearMonthToMonth(2017, 11), 5, 0, 1, 1);
+
                 //second row
                 billing.Insert(2, 2, "A005", BillingCodeResponse.NONE);
 
