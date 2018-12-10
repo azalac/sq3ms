@@ -126,7 +126,10 @@ namespace Support
             // call the custom reader if there is one
             if(prototype.CustomReader != null)
             {
-                prototype.CustomReader(this, File.ReadAllText(Location));
+                if (File.Exists(Location))
+                {
+                    prototype.CustomReader(this, File.ReadAllText(Location));
+                }
                 return;
             }
 
