@@ -1,7 +1,7 @@
 ﻿/*
 * FILE          : Logging.cs
 * PROJECT       : INFO-2180 Software Quality 1, Term Project
-* PROGRAMMER    : Billy Parmenter
+* PROGRAMMER    : Austin Zalac
 * FIRST VERSION : November 1, 2018
 */
 

@@ -1,3 +1,9 @@
+/*
+* FILE          : DatabaseManager.cs
+* PROJECT       : INFO-2180 Software Quality 1, Term Project
+* PROGRAMMER    : Billy Parmenter
+* FIRST VERSION : November 29, 2018
+*/
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -253,34 +259,6 @@ namespace Support
         /// <summary>
         /// Gets all primary keys for rows where the specified column equals a specific value.
         /// </summary>
-        /// <remarks>
-        /// 
-        /// I recommend using this method with System.Linq, because it includes many helper methods.
-        /// 
-        /// Example (using Linq):
-        /// 
-        /// <code>
-        /// 
-        /// object pk = People.WhereEquals<string>("firstName", "[insert first name]").First();
-        /// 
-        /// object lastName = People[pk, "lastName"];
-        /// 
-        /// do something with lastName, etc.
-        /// 
-        /// </code>
-        /// 
-        /// Example (not using Linq):
-        /// 
-        /// <code>
-        /// 
-        /// foreach(object pk in People.WhereEquals<string>("firstName", "[insert first name]"))
-        /// {
-        ///     // this person has a first name which matches the given input, do something with it.
-        /// }
-        /// 
-        /// </code>
-        /// 
-        /// </remarks>
         /// <typeparam name="T">The column type.</typeparam>
         /// <param name="column">The column to compare against.</param>
         /// <param name="equals">The value to compare against.</param>

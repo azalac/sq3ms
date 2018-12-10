@@ -1,4 +1,10 @@
-﻿using Definitions;
+﻿/*
+* FILE          : Person.cs
+* PROJECT       : INFO-2180 Software Quality 1, Term Project
+* PROGRAMMER    : Mike Ramoutsakis
+* FIRST VERSION : November 14, 2018
+*/
+using Definitions;
 using Support;
 using System;
 using System.Collections.Generic;
