@@ -208,7 +208,7 @@ namespace SchedulingUI
         /// The minimum number of inputs required. Setting to -1 means all
         /// inputs must be valid.
         /// </summary>
-        public int MinRequired { get; set; }
+        public int MinRequired { get; set; } = -1;
 
         protected Dictionary<string, InputParser> Parsers = new Dictionary<string, InputParser>();
 
@@ -287,7 +287,7 @@ namespace SchedulingUI
                 {
                     if (valid_inputs[i])
                     {
-                        vals[labels[i].Text] = inputs[i].Text;
+                        vals[labels[i].Text] = values[i];
                     }
                 }
 
@@ -455,6 +455,8 @@ namespace SchedulingUI
                 input.Clear();
             }
 
+            submit.Text = "OK";
+
             HandleArguments(arguments);
         }
 
@@ -535,9 +537,9 @@ namespace SchedulingUI
         }
     }
 
-    public class PersonDataEntry : FormInputSelectorContent
+    public class PersonSearchContent : FormInputSelectorContent
     {
-        public PersonDataEntry():
+        public PersonSearchContent():
             base("First Name", "Middle Initial", "Last Name", "Phone Number", "HCN")
         {
             Name = "PersonDataEntry";
@@ -547,18 +549,12 @@ namespace SchedulingUI
             Parsers["Last Name"] = ValidateNonEmpty;
             Parsers["Phone Number"] = ValidatePhoneNumber;
             Parsers["HCN"] = ValidateHCN;
+
+            MinRequired = 1;
         }
 
         public override void HandleArguments(string[] arguments)
         {
-            if(arguments != null && arguments.Length > 0)
-            {
-                MinRequired = Equals(arguments[0], "filling_manditory") ? -1 : 1;
-            }
-            else
-            {
-                MinRequired = 1;
-            }
         }
 
         private object ValidateNonEmpty(string text, out bool valid)
@@ -590,6 +586,106 @@ namespace SchedulingUI
         }
     }
 
+    public class PersonAddContent : FormInputSelectorContent
+    {
+        public PersonAddContent() :
+            base("First Name", "Middle Initial", "Last Name", "Sex", "HCN")
+        {
+            Name = "PersonDataEntry";
+
+            Parsers["First Name"] = ValidateNonEmpty;
+            Parsers["Middle Initial"] = ValidateOneCharacter;
+            Parsers["Last Name"] = ValidateNonEmpty;
+            Parsers["Sex"] = ValidateSex;
+            Parsers["HCN"] = ValidateHCN;
+        }
+
+        public override void HandleArguments(string[] arguments)
+        {
+
+        }
+
+        private object ValidateNonEmpty(string text, out bool valid)
+        {
+            valid = text.Length > 0;
+
+            return text;
+        }
+
+        private object ValidateOneCharacter(string text, out bool valid)
+        {
+            valid = text.Length == 1;
+
+            return text;
+        }
+
+        private object ValidateSex(string text, out bool valid)
+        {
+            valid = text.Length == 1 &&
+                Array.IndexOf(new char[] { 'M', 'F', 'I', 'H' },text[0]) != -1;
+
+            return text;
+        }
+
+        private object ValidateHCN(string text, out bool valid)
+        {
+            valid = Regex.IsMatch(text, @"^\d{10}\w{2}$");
+
+            return text;
+        }
+    }
+
+    public class HouseDataInputContent : FormInputSelectorContent
+    {
+        public HouseDataInputContent() :
+            base("Address Line 1", "Address Line 2", "City", "Province", "Phone Number", "Head Of House HCN")
+        {
+            Name = "PersonDataEntry";
+
+            Parsers["Address Line 1"] = ValidateNonEmpty;
+            Parsers["Address Line 2"] = ValidateAL2;
+            Parsers["City"] = ValidateNonEmpty;
+            Parsers["Province"] = ValidateNonEmpty;
+            Parsers["Phone Number"] = ValidatePhoneNumber;
+            Parsers["HCN"] = ValidateHCN;
+
+            MinRequired = 1;
+        }
+
+        public override void HandleArguments(string[] arguments)
+        {
+
+        }
+
+        private object ValidateNonEmpty(string text, out bool valid)
+        {
+            valid = text.Length > 0;
+
+            return text;
+        }
+
+        private object ValidateAL2(string text, out bool valid)
+        {
+            valid = true;
+
+            return text;
+        }
+
+        private object ValidatePhoneNumber(string text, out bool valid)
+        {
+            valid = Regex.IsMatch(text, @"^(\+1)?\s*(\(\d{3}\)|\d{3})[\s-]+\d{3}[\s-]+\d{4}$");
+
+            return text;
+        }
+
+        private object ValidateHCN(string text, out bool valid)
+        {
+            valid = Regex.IsMatch(text, @"^\d{10}\w{2}$");
+
+            return text;
+        }
+    }
+
     public class MonthFilePathDataEntry: FormInputSelectorContent
     {
         public MonthFilePathDataEntry():
@@ -602,9 +698,9 @@ namespace SchedulingUI
 
         private object ParseMonth(string text, out bool valid)
         {
-            valid = int.TryParse(text, out int number);
+            valid = int.TryParse(text, out int number) && number >= 0 && number <= 11;
 
-            if (valid && number >= 0 && number <= 11)
+            if (valid)
             {
                 return number;
             }
