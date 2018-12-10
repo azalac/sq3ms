@@ -1,13 +1,14 @@
 ﻿/*
 * FILE          : BillingMasterEntry.cs
 * PROJECT       : INFO-2180 Software Quality 1, Term Project
-* PROGRAMMER    : Blake Ribble
+* PROGRAMMER    : Billy Parmenter
 * FIRST VERSION : November 1, 2018
 */
 
 using Support;
 using System;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace Billing
 {
@@ -16,6 +17,10 @@ namespace Billing
     /// </summary>
     public class BillingMasterEntry
     {
+        private const string pattern =
+            @"^(?'code'\w\d\d\d)(?'year'\d{4})(?'month'[01][0-9])(?'day'[0-3][0-9])(?'amt1'\d{7})(?'amt2'\d{4})$";
+
+
         /// <summary>
         /// The fee code for this billing description.
         /// </summary>
@@ -115,37 +120,19 @@ namespace Billing
         {
             //Create a new instance of the parsedCode
             BillingMasterEntry parsedCode = new BillingMasterEntry();
-
-            //Variable that will hold the temporary dollar amount for parsing
-            string tempAmount;
-
+            
             //If the length is less than 23, not a proper billing code length
             if(ValidMasterEntry(data))
             {
+
+                Match match = Regex.Match(data, pattern);
+
+                parsedCode.FeeCode = match.Groups["code"].Value;
+
+                parsedCode.EffectiveDate = match.Groups["year"].Value + match.Groups["month"].Value + match.Groups["day"].Value;
+
+                parsedCode.DollarAmount = match.Groups["amt1"].Value + match.Groups["amt2"].Value;
                 
-                //Set the fee code
-                parsedCode.FeeCode = data.Substring(0, 4);
-
-                //Set the effective date
-                parsedCode.EffectiveDate = data.Substring(4, 8);
-                
-                //Set the temp dollar amount into temp variable
-                tempAmount = data.Substring(12, 11);
-                
-                //Get rid of the leading zeroes
-                tempAmount = tempAmount.TrimStart('0');
-
-                //Get the length of the string to get rid of the two ending zeroes
-                int amountLength = tempAmount.Length - 2;
-
-                //Remove those zeroes
-                tempAmount = tempAmount.Remove(amountLength, 2);
-
-                //Set the dollar amount to properly formatted amount
-                parsedCode.DollarAmount = tempAmount.Substring(0, amountLength - 2) + "." + tempAmount.Substring(amountLength - 2);
-
-                //Return the parsed BillingMasterEntry
-
                 return parsedCode;
             }
 
@@ -163,8 +150,6 @@ namespace Billing
         /// <returns><code>true</code> if the string is valid</returns>
         private static bool ValidMasterEntry(string str)
         {
-            string pattern = @"^(?'code'\w\d\d\d)(?'year'\d{4})(?'month'[01][0-9])(?'day'[0-3][0-9])(?'amt1'\d{7})(?'amt2'\d{4})$";
-
             return System.Text.RegularExpressions.Regex.IsMatch(str, pattern);
         }
     }
