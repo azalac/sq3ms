@@ -9,10 +9,12 @@ namespace Demographics
     public class HouseholdManager
     {
         private DatabaseTable households;
+        private DatabaseTable people;
 
         public HouseholdManager(DatabaseManager database)
         {
             households = database["Household"];
+            people = database["Patients"];
         }
 
         public object FindHousehold(string address1, string address2, string city,
@@ -62,6 +64,11 @@ namespace Demographics
             households.Insert(pk, address1, address2, city, province, numPhone, HOH_HCN);
 
             return pk;
+        }
+
+        public void SetHousehold(int person, int house)
+        {
+            people[person, "HouseID"] = house;
         }
 
     }
