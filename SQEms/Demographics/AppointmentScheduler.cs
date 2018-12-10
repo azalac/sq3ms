@@ -167,6 +167,19 @@ namespace Support
             return retIDs;
         }
 
+        /// <summary>
+        /// Reschedules an appointment.
+        /// </summary>
+        /// <param name="aptid">The appointment.</param>
+        /// <param name="new_time">The new time.</param>
+        public void Reschedule(int aptid, AptTimeSlot new_time)
+        {
+            int pid = (int)Appointments[aptid, "PatientID"];
+            int cid = (int)Appointments[aptid, "CaregiverID"];
+
+            Schedule(new_time, pid, cid);
+        }
+
 
 
 
@@ -207,7 +220,7 @@ namespace Support
         /// <param name="slot">The slot to check</param>
         /// <exception cref="ArgumentException">If the date is not valid</exception>
         /// <returns>Bool if the dates are valid</returns>
-        public bool ValidateDate (int month = 0, int day = 0, int slot = 0)
+        private bool ValidateDate (int month = 0, int day = 0, int slot = 0)
         {
             bool valid = false;
 
@@ -224,6 +237,35 @@ namespace Support
             }
 
             return valid;
+        }
+
+        /// <summary>
+        /// Checks if a timeslot is available.
+        /// </summary>
+        /// <param name="absmonth">The absolute month (since 1970)</param>
+        /// <param name="day">The day of the month</param>
+        /// <param name="slot">The timeslot</param>
+        /// <returns>Whether the timeslot is available or not</returns>
+        public bool TimeslotAvailable(int absmonth, int day, int slot)
+        {
+            var matches = Appointments.WhereEquals("Month;Day;TimeSlot", absmonth, day, slot);
+
+            return matches.Count() == 0;
+        }
+
+        /// <summary>
+        /// Gets the appointment during a specific time slot.
+        /// </summary>
+        /// <param name="absmonth">The absolute month (since 1970)</param>
+        /// <param name="day">The day of the month</param>
+        /// <param name="slot">The timeslot</param>
+        /// <returns>Whether the appointment id</returns>
+        public int? GetAppointmentID(int absmonth, int day, int slot)
+        {
+            var matches = Appointments.WhereEquals("Month;Day;TimeSlot", absmonth, day, slot)
+                .Select(obj => new int?((int)obj));
+
+            return matches.FirstOrDefault();
         }
     }
 }
