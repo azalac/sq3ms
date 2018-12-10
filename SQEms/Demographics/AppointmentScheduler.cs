@@ -1,8 +1,9 @@
 /*
- * FILE          : AppointmentScheduler.cs
- * PROJECT       : SQ EMS
- * TEAM          : Odysseus
- */
+* FILE          : Person.cs
+* PROJECT       : INFO-2180 Software Quality 1, Term Project
+* PROGRAMMER    : Mike Ramoutsakis
+* FIRST VERSION : November 20, 2018
+*/
 
 using System;
 using System.Linq;
